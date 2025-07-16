@@ -36,11 +36,12 @@
         <!-- 1. Point src at your uploaded logo file: -->
         <img
           src="images/columbia_engineering.png"
-          alt="Columbia"
+          alt="Columbia Engineering"
           class="h-8 w-auto mr-2"
         />
         <!-- 2. Your site title -->
-        <h1 class="text-2xl font-bold text-gray-900">Lucas Zheng</h1>
+        <h1 class="text-2xl font- italic text-gray-900"
+        style="font-family: 'Times New Roman', Times, serif;" >Lucas Zheng</h1>
       </div>
       <!-- Navigation Links -->
       <div class="flex items-center space-x-4">
@@ -54,94 +55,279 @@
 </nav>
 
 
-
-
-
-
-
-
-
-
-
-
-  
   <!-- Hero Section -->
-  <!-- new -->
-<section
-  id="home"
-  class="h-[60vh] flex items-center justify-center bg-cover bg-center"
-  style="background-image: url('images/hawaiifronter.jpg');"
->
-  <div class="text-center text-white px-4">
-    <p class="text-lg md:text-xl mb-6">
-      Showcasing my journey
-    </p>
-    <a
-      href="#portfolio"
-      class="bg-white text-blue-600 px-6 py-3 rounded-md font-semibold hover:bg-blue-100 transition"
-    >
-      View My Work
-    </a>
+  <section
+    id="home"
+    class="h-[40vh] flex items-center justify-center bg-cover bg-top"
+    style="background-image: url('images/hawaiifronter.jpg');"
+  >
+    <div class="text-center text-white px-4">
+      <p class="text-lg md:text-xl mb-6"></p>
+      <a
+        href="#portfolio"
+        class="bg-white text-blue-600 px-6 py-3 rounded-md font-semibold hover:bg-blue-100 transition"
+      >
+        View My Work
+      </a>
+    </div>
+  </section>
+
+
+<!-- About Section (original, without background image) -->
+<section id="about" class="py-10 bg-white">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <h2 class="text-3xl font-bold text-gray-900 text-center mb-10"
+     style="font-family: 'Times New Roman', Times, serif;">
+      About Me
+    </h2>
+    <div class="flex flex-col md:flex-row items-center">
+      <div class="md:w-1/2 mb-6 md:mb-0">
+        <img
+          src="images/profile.png"
+          alt="My Profile Picture"
+          class="rounded-lg shadow-md mx-auto w-90 h-90 object-cover"
+        >
+      </div>
+      <div class="md:w-1/2 md:pl-10">
+        <p id="about-text" class="text-lg sm:text-l md:text-l text-gray-600 leading-relaxed">
+          Hi, I’m Lucas, a rising senior major in Operations Research at Columbia University.
+          I focus on data analysis and optimization and have built self-motivated projects. In my free time, I enjoy exploring nature, driving to take photos, and watching basketball games. Welcome to my personal website—here you’ll find my projects, university experiences, and more.
+        </p>
+      </div>
+    </div>
   </div>
 </section>
 
 
-  <!-- About Section -->
-  <section id="about" class="py-20 bg-white"> <!-- bg-white: section background -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <h2 class="text-3xl font-bold text-gray-900 text-center mb-10">
-        <!-- USER-EDIT: Section title -->
-        About Me
-      </h2>
-      <div class="flex flex-col md:flex-row items-center">
-        <div class="md:w-1/2 mb-6 md:mb-0">
-          <!-- USER-EDIT: Profile image URL -->
-          <img  src="images/profilepictures.jpg"
-               alt="My Profile Picture"
-               class="rounded-lg shadow-md mx-auto">
-        </div>
-        <div class="md:w-1/2 md:pl-10">
-          <p id="about-text" class="text-gray-600 leading-relaxed">
-            <!-- USER-EDIT: Your bio text -->
-            Hi, I’m [Your Name], a [your profession]. Welcome to my personal website—here you’ll find my projects,
-            university experiences, and more.
-          </p>
-        </div>
-      </div>
-    </div>
-  </section>
 
-  <!-- Portfolio / Gallery Section -->
-  <section id="portfolio" class="py-20 bg-gray-100">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <h2 class="text-3xl font-bold text-gray-900 text-center mb-10">
-        <!-- USER-EDIT: Section title -->
-        Portfolio
-      </h2>
-      <div id="gallery" class="gallery-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        <!-- JS will inject uploaded images here -->
-      </div>
-      <div class="mt-6 text-center">
-        <label for="image-upload"
-               class="cursor-pointer bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition">
-          <!-- USER-EDIT: Upload button text -->
-          Upload Images
-        </label>
-        <input type="file" id="image-upload" accept="image/*" multiple class="hidden">
-      </div>
-    </div>
-  </section>
 
-  <!-- Contact Section -->
-  <section id="contact" class="py-20 bg-white">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <h2 class="text-3xl font-bold text-gray-900 text-center mb-10">
-        <!-- USER-EDIT: Section title -->
-        Get in Touch
-      </h2>
-      <!-- USER-EDIT: Add your contact details or form here -->
+
+<!-- Portfolio / Gallery Section with columbiamain as full‐bleed background -->
+<section
+  id="portfolio"
+  class="relative py-16 bg-cover bg-center"
+  style="background-image: url('images/columbiamain.jpg');"
+>
+  <!-- light overlay -->
+  <div class="absolute inset-0 bg-gray-100/70"></div>
+
+  <!-- wrapper (same width as your tab bar above) -->
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <h2
+      class="text-3xl font-bold italic text-center mb-6
+             bg-clip-text text-transparent
+             bg-gradient-to-r from-gray-900 to-gray-600
+             animate-pulse"
+      style="font-family: 'Times New Roman', Times, serif;"
+    >
+      Portfolio
+    </h2>
+
+    <!-- Tab Buttons Container -->
+    <div
+      class="flex justify-center gap-4 mb-8 p-2
+             bg-gradient-to-r from-gray-800/50 via-gray-900/50 to-black/50
+             rounded-lg backdrop-blur-md"
+    >
+      <a
+        href="https://your-photo-blog-url.com"
+        target="_blank"
+        class="px-6 py-2 text-sm font-medium text-white bg-transparent rounded-lg hover:bg-gray-600/30 transition"
+      >Photos</a>
+      <button
+        data-tab="projects"
+        class="tab-btn px-6 py-2 text-sm font-medium text-gray-200 bg-transparent rounded-lg hover:bg-gray-600/30 transition focus:outline-none"
+      >Projects</button>
+      <button
+        data-tab="resume"
+        class="tab-btn px-6 py-2 text-sm font-medium text-gray-300 bg-transparent rounded-lg hover:bg-gray-600/30 transition focus:outline-none"
+      >Resume</button>
     </div>
-  </section>
+
+
+
+
+
+
+
+
+<div id="projects" class="tab-content hidden">
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+
+    <div class="col-span-full bg-white rounded-lg shadow-md overflow-hidden w-full">
+      <div class="p-6">
+        <h3 class="text-lg font-semibold mb-2">PET Advisor</h3>
+        <p class="text-gray-600 mb-4">
+          A web privacy tool. The PET Advisor is designed to assist organizations in identifying and implementing appropriate privacy-preserving technologies for their specific data use cases. It guides users through an interactive questionnaire that captures key aspects of their organization’s technical environment, data handling practices, and regulatory obligations.
+        </p>
+        <a
+          href="https://github.com/zhengz9417/Privacy-Tool.git"
+          target="_blank"
+          class="text-blue-600 hover:underline"
+        >
+          View on GitHub
+        </a>
+      </div>
+    </div>
+
+    <div class="col-span-full bg-white rounded-lg shadow-md overflow-hidden w-full">
+      <div class="p-6">
+        <h3 class="text-lg font-semibold mb-2"> IQ and Gender: Exploring the Differences </h3>
+        <p class="text-gray-600 mb-4">
+          A project studying IQ differences between genders by using a developed virtual statistics simulator named 'Islander'.
+        </p>
+        <a
+          href="https://rpubs.com/LucasZheng/1122234"
+          target="_blank"
+          class="text-blue-600 hover:underline"
+        >
+          View on RPubs
+        </a>
+      </div>
+    </div>
+
+    <div class="col-span-full bg-white rounded-lg shadow-md overflow-hidden w-full">
+      <div class="p-6">
+        <h3 class="text-lg font-semibold mb-2">NBA 2K Decade Draft</h3>
+        <p class="text-gray-600 mb-4">
+          A fantasy draft app extension for 2K MyTEAM, allowing two players to take turns selecting randomly generated starter and bench players. Features options to reroll unwanted picks and dynamically displays completed rosters.
+        </p>
+        <a
+          href="https://github.com/zhengz9417/2k-decade_draft.git"
+          target="_blank"
+          class="text-blue-600 hover:underline"
+        >
+          View on GitHub
+        </a>
+      </div>
+    </div>
+
+    <div class="col-span-full bg-white rounded-lg shadow-md overflow-hidden w-full">
+      <div class="p-6">
+        <h3 class="text-lg font-semibold mb-2">New York Rat Sighting</h3>
+        <p class="text-gray-600 mb-4">
+          A reporting tool for New York City rat sightings. This platform allows students to post and comment on locations where rats have been spotted, fostering a community-driven database of sightings.
+        </p>
+        <a
+          href="https://github.com/zhengz9417/NewYork-rat-sighting.git"
+          target="_blank"
+          class="text-blue-600 hover:underline"
+        >
+          View on GitHub
+        </a>
+      </div>
+    </div>
+    
+  </div>
+</div>
+
+
+
+
+
+
+
+    <!-- Resume Pane -->
+    <div id="resume" class="tab-content hidden text-center">
+      <a
+        href="images/Lucas Zheng resume.pdf"
+        target="_blank"
+        class="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition"
+      >
+        Lucas Zheng Resume_PDF
+      </a>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Tab logic for Projects & Resume
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('bg-gray-600/50','text-white');
+        b.classList.add('text-gray-200','bg-transparent');
+      });
+      document.querySelectorAll('.tab-content').forEach(p => p.classList.add('hidden'));
+      btn.classList.add('bg-gray-600/50','text-white');
+      btn.classList.remove('text-gray-200','bg-transparent');
+      document.getElementById(btn.dataset.tab).classList.remove('hidden');
+    });
+  });
+</script>
+
+
+
+<script>
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('bg-gray-600/50','text-white');
+        b.classList.add('text-gray-300','bg-transparent');
+      });
+      document.querySelectorAll('.tab-content').forEach(p => p.classList.add('hidden'));
+      btn.classList.add('bg-gray-600/50','text-white');
+      btn.classList.remove('text-gray-300','bg-transparent');
+      document.getElementById(btn.dataset.tab).classList.remove('hidden');
+    });
+  });
+</script>
+
+
+
+
+
+
+<!-- Contact Section -->
+<section id="contact" class="py-20 bg-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <h2 class="text-3xl font-bold text-gray-900 text-center mb-10"
+     style="font-family: 'Times New Roman', Times, serif;">
+
+      Get in Touch
+    </h2>
+
+   
+
+   
+
+<div class="text-center space-y-2">
+  <a
+    href="mailto:zhengz9417@gmail.com"
+    class="text-blue-600 hover:underline text-lg block"
+  >
+    zhengz9417@gmail.com
+  </a>
+  <a
+    href="https://www.linkedin.com/in/zhengz9417"
+    target="_blank"
+    class="text-blue-600 hover:underline text-lg block"
+  >
+    LinkedIn Profile
+  </a>
+  <p class="text-gray-700 text-lg">
+    Phone: 206-458-9527
+  </p>
+</div>
+
+  <div class="flex flex-col items-center space-y-0 mb-6">
+  <img
+    src="images/columbia-university.png"
+    alt="Columbia University Logo"
+    class="h-28 object-contain"
+  >
+  <img
+    src="images/WhitmanGCLogo.png"
+    alt="Whitman College Logo"
+    class="h-6 object-contain ml-6 transform -translate-x-4"
+  >
+</div>
+  </div>
+</section>
+
+
+
+
 
   <!-- Image‐Upload Script (controls gallery functionality) -->
   <script>
