@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Vibe Gallery - Lucas</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Helvetica Neue', sans-serif;
+      background-color: #111;
+      color: #eee;
+    }
+
+    header {
+      text-align: center;
+      padding: 40px 20px 10px;
+      background: linear-gradient(to right, #111, #222);
+    }
+
+    header h1 {
+      font-size: 2.5em;
+      letter-spacing: 2px;
+      margin-bottom: 10px;
+    }
+
+    header p {
+      font-size: 1em;
+      color: #bbb;
+    }
+
+    .search-container {
+      text-align: center;
+      padding: 20px;
+    }
+
+    .search-container input {
+      padding: 10px;
+      width: 80%;
+      max-width: 400px;
+      font-size: 1em;
+      border-radius: 6px;
+      border: none;
+    }
+
+    .gallery-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 24px;
+    }
+
+    .photo-item {
+      background-color: #1a1a1a;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 0 12px rgba(255, 255, 255, 0.05);
+      transition: transform 0.3s ease;
+      cursor: pointer;
+    }
+
+    .photo-item:hover {
+      transform: scale(1.01);
+    }
+
+    .photo-item img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-bottom: 1px solid #333;
+    }
+
+    .photo-item p {
+      padding: 12px 16px;
+      margin: 0;
+      font-size: 0.95em;
+      color: #ccc;
+      text-align: center;
+      font-family: 'Times New Roman', Times, serif;
+    }
+
+    .lightbox {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      display: none;
+    }
+
+    .lightbox img {
+      max-width: 90vw;
+      max-height: 90vh;
+    }
+
+    .lightbox.active {
+      display: flex;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Gallery</h1>
+    <p>A collection of aesthetic moments ✦</p>
+  </header>
+
+  <div class="search-container">
+    <input type="text" id="searchInput" placeholder="Search by keyword, location, or vibe...">
+  </div>
+
+  <div class="gallery-container" id="gallery">
+    <!-- Your .photo-item blocks go here -->
+  </div>
+
+  <div class="lightbox" id="lightbox">
+    <img id="lightboxImg" src="" alt="Expanded view">
+  </div>
+
+  <script>
+    const photoData = [
+      {src: "blues.jpg", text: "Alaska"},
+      {src: "fall_angel.jpg", text: "Lower Manhattan cinema"},
+      {src: "fall_angel2.jpg", text: "Lower Manhattan cinema"},
+      {src: "fire.jpg", text: "Camping in Washington"},
+      {src: "firework.jpg", text: "July 4th in Seattle"},
+      {src: "canyon.jpg", text: "Antelope Canyon"},
+      {src: "canyon_2.jpg", text: "Antelope Canyon"},
+      {src: "canyon_4.jpg", text: "Antelope Canyon"},
+      {src: "canyon_5.jpg", text: "Antelope Canyon"},
+      {src: "canyon3.jpg", text: "Antelope Canyon"},
+      {src: "b_w_forest.jpg", text: "Seattle rainforest"},
+      {src: "daisy.jpg", text: "Street side"},
+      {src: "aruor_eletric.jpg", text: "Walla Walla wheat field"},
+      {src: "auror_house.jpg", text: "Walla Walla house"},
+      {src: "beach_sunset.jpg", text: "California weather"},
+      {src: "cali_sunset.jpg", text: "Santa Monica sunset"},
+      {src: "fishing.jpg", text: "Seattle sunrise"},
+      {src: "hawaii_sunset.jpg", text: "Hawaii Big Island sunset"},
+      {src: "hawaiifronter.jpg", text: "Honolulu sunset, Hawaii"},
+      {src: "hole_view.jpg", text: "Arches National Park, Utah"},
+      {src: "plain.jpg", text: "Utah plains"},
+      {src: "utah_rock.jpg", text: "Utah red rock formations"},
+      {src: "joshua.jpg", text: "Joshua Tree National Park"},
+      {src: "joshua_2.jpg", text: "Joshua Tree National Park"},
+      {src: "tree.jpg", text: "Joshua Tree National Park"},
+      {src: "rock_2.jpg", text: "Death Valley National Park"},
+      {src: "mountain_light.jpg", text: "Yosemite late afternoon"},
+      {src: "mountain_view.jpg", text: "Yosemite sunset on the way back"},
+      {src: "museum.jpg", text: "Metropolitan Museum of Art"},
+      {src: "time_square.jpg", text: "Times Square at midnight"},
+      {src: "sunrise.jpg", text: "Columbia Morningside dorm sunrise"},
+      {src: "cornell.jpg", text: "Cornell campus sunset"},
+      {src: "columbiamain.jpg", text: "Columbia main library"}
+    ];
+
+    const gallery = document.getElementById('gallery');
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightboxImg');
+    const searchInput = document.getElementById('searchInput');
+
+    function renderGallery(filter = "") {
+      gallery.innerHTML = "";
+      photoData.forEach(item => {
+        if (item.text.toLowerCase().includes(filter.toLowerCase())) {
+          const div = document.createElement('div');
+          div.className = "photo-item";
+          div.innerHTML = `<img src="images/${item.src}" alt="${item.src}"><p>${item.text}</p>`;
+          div.onclick = () => {
+            lightboxImg.src = `images/${item.src}`;
+            lightbox.classList.add("active");
+          };
+          gallery.appendChild(div);
+        }
+      });
+    }
+
+    lightbox.addEventListener('click', () => {
+      lightbox.classList.remove("active");
+    });
+
+    searchInput.addEventListener('input', () => {
+      renderGallery(searchInput.value);
+    });
+
+    renderGallery();
+  </script>
+</body>
+</html>
