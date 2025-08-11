@@ -8,11 +8,11 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;600;700&display=swap" rel="stylesheet">
 
-  <!-- Firebase SDK (Compat 版简单好接入静态页) -->
+  <!-- Firebase SDK (Compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-  <!-- 你的项目配置（在 firebase-init.js 里填好再引用） -->
+  <!-- 你的项目配置 -->
   <script src="firebase-init.js"></script>
 
   <style>
@@ -235,7 +235,7 @@
   </main>
 
 <script>
-/* ===================== i18n（每端独立） ===================== */
+/* ===================== i18n ===================== */
 let LANG = 'zh';
 const i18n = {
   zh:{back:"返回主网页", title:"Liar’s Bar", refresh:"刷新页面",
@@ -357,7 +357,7 @@ function roomRefs(roomId){
   };
 }
 
-/* ===================== Host 权威状态（仅主机保持完整内存） ===================== */
+/* ===================== Host 权威状态 ===================== */
 let H = null;
 
 async function hostInit(roomId, name){
@@ -401,7 +401,7 @@ async function guestJoin(roomId, name){
   document.getElementById("hostPanel").classList.add('hidden');
 }
 
-/* ===================== Host 写入（Lobby/State/Hands/Events） ===================== */
+/* ===================== Host 写入 ===================== */
 async function writeLobby(){
   const { lobby } = roomRefs(ROOM_ID);
   const canStart = H.players.filter(p=>p && p.alive).length >= 2;
@@ -511,7 +511,7 @@ async function hostPlay(_uid, indices){
   H.awaitingReveal=false; H.challengerId=null;
   H.turn = nextAliveFrom(H, H.turn);
 
-  await handsSetOne(p.uid, p.hand); // 更新该玩家手牌
+  await handsSetOne(p.uid, p.hand);
   await writeState();
 }
 async function handsSetOne(uidX, hand){ const { hands } = roomRefs(ROOM_ID); await hands.doc(uidX).set({ ownerUid:uidX, hand }); }
@@ -593,36 +593,38 @@ async function hostBackToLobbyReset(){
   enterLobbyUI();
 }
 
-/* ===================== Host 监听 actions ===================== */
+/* ===================== Host 监听 actions（已修复） ===================== */
 let unsubActions = null;
 function attachHostActionListener(){
   const { actions } = roomRefs(ROOM_ID);
   if (unsubActions) unsubActions();
-  unsubActions = actions.where('processed','==',false).orderBy('ts')
-    .onSnapshot(async (qs)=>{
-      for (const ch of qs.docChanges()){
-        if (ch.type !== 'added') continue;
-        const doc = ch.doc; const a = doc.data()||{};
-        // 处理
-        try{
-          switch(a.type){
-            case 'TAKE_SEAT': await hostTakeSeat(a.seat, a.uid, a.name); break;
-            case 'PLAY': await hostPlay(a.uid, a.indices); break;
-            case 'LIAR': await hostLiar(a.uid); break;
-            case 'REVEAL': await hostReveal(); break;
-            case 'HOST_APPLY': if (a.uid===uid) await hostApplySettings(); break; // 仅主机自己会发
-            case 'HOST_START': if (a.uid===uid) await hostStart(); break;
-            case 'HOST_RESTART': if (a.uid===uid) await hostRestart(); break;
-            case 'BACK_TO_LOBBY': await hostBackToLobbyReset(); break;
-          }
-        } finally {
-          await doc.ref.update({ processed:true, processedBy: uid });
+
+  // 改成只按时间监听最后100条，自己过滤 processed，避免索引要求
+  unsubActions = actions.orderBy('ts').limitToLast(100).onSnapshot(async (qs)=>{
+    for (const ch of qs.docChanges()){
+      if (ch.type !== 'added') continue;
+      const doc = ch.doc; const a = doc.data()||{};
+      if (a.processed) continue;
+
+      try{
+        switch(a.type){
+          case 'TAKE_SEAT': await hostTakeSeat(a.seat, a.uid, a.name); break;
+          case 'PLAY':      await hostPlay(a.uid, a.indices); break;
+          case 'LIAR':      await hostLiar(a.uid); break;
+          case 'REVEAL':    await hostReveal(); break;
+          case 'HOST_APPLY':   if (a.uid===uid) await hostApplySettings(); break;
+          case 'HOST_START':   if (a.uid===uid) await hostStart(); break;
+          case 'HOST_RESTART': if (a.uid===uid) await hostRestart(); break;
+          case 'BACK_TO_LOBBY': await hostBackToLobbyReset(); break;
         }
+      } finally {
+        await doc.ref.update({ processed:true, processedBy: uid });
       }
-    });
+    }
+  });
 }
 
-/* ===================== 公用监听（Lobby/State/Events/Hands） ===================== */
+/* ===================== 公用监听 ===================== */
 let unsubLobby=null, unsubState=null, unsubEvents=null, unsubMyHand=null;
 let L=null, S=null, myHand=[], myHandHash="";
 let lastReveal=null, lastTurnUid=null, prevRoundNo=null;
@@ -686,8 +688,10 @@ function attachCommonListeners(){
   });
 }
 
-/* ===================== 事件 -> Host/Guest 发起 ===================== */
-function sendAction(data){
+/* ===================== 事件发送（已确保登录） ===================== */
+async function sendAction(data){
+  await ensureAuth();                 // ★ 确保匿名登录就绪
+  if (!uid) uid = auth.currentUser.uid;
   const { actions } = roomRefs(ROOM_ID);
   return actions.add({
     ...data,
@@ -697,7 +701,7 @@ function sendAction(data){
   });
 }
 
-/* ===================== UI：渲染与组件 ===================== */
+/* ===================== UI：渲染 ===================== */
 function enterLobbyUI(){ document.getElementById("connect").classList.add("hidden"); document.getElementById("game").classList.add("hidden"); document.getElementById("lobby").classList.remove("hidden"); }
 function enterGameUI(){ document.getElementById("lobby").classList.add("hidden"); document.getElementById("game").classList.remove("hidden"); }
 
