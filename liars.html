@@ -2,88 +2,176 @@
 <html lang="zh">
 <head>
   <meta charset="utf-8" />
-  <title>Liar’s Bar – Host/Join（修复：胜者先手 + 回合提示 + 回大厅 + 取消轮询避免选择被清）</title>
+  <title>Liar’s Bar – 主机/加入（美化 + 自带装饰图）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;600;700&display=swap" rel="stylesheet">
   <style>
-    .card{display:inline-flex;align-items:center;justify-content:center;width:56px;height:80px;margin:4px;border-radius:12px;border:1px solid #cbd5e1;background:#fff;color:#111827;font-weight:700;transition:transform .15s ease;user-select:none}
-    .card.sel{outline:3px solid #6366F1;transform:translateY(-4px)}
-    .card.joker{background:repeating-linear-gradient(45deg,#fff,#fff 6px,#f8fafc 6px,#f8fafc 12px)}
-    .badge{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid #cbd5e1}
-    .dead{opacity:.45;filter:grayscale(.4)}
+    :root{
+      --bg1:#0b1020; --bg2:#111936; --felt:#0e3a1c; --felt2:#0a2d15;
+      --panel:#10172bcc; --panel-strong:#0f162dcc;
+      --glow:#6ee7ff; --glow2:#a78bfa; --accent:#7dd3fc; --danger:#fb7185; --okay:#34d399; --amber:#fbbf24;
+    }
+    body{
+      font-family:'Oxanium',ui-sans-serif,system-ui;
+      color:#e5ecff;
+      background:
+        radial-gradient(900px 600px at 10% -10%, #1a2759 0%, transparent 60%),
+        radial-gradient(900px 600px at 100% 10%, #1b2a5b 0%, transparent 55%),
+        linear-gradient(180deg,var(--bg1),var(--bg2));
+    }
+    .glass{background:var(--panel); backdrop-filter: blur(10px); border:1px solid #33415566; box-shadow: 0 10px 30px rgba(0,0,0,.3);}
+    .glass-strong{background:var(--panel-strong); backdrop-filter: blur(12px); border:1px solid #47556980;}
+    .neon-title{background: linear-gradient(90deg,var(--glow),var(--glow2)); -webkit-background-clip:text; background-clip:text; color:transparent; text-shadow:0 0 22px rgba(110,231,255,.28)}
+    .btn{border:1px solid #5b6b8a66; padding:.55rem 1rem; border-radius:.9rem; background:linear-gradient(180deg,#111a34,#0c1429); color:#e5ecff; transition: box-shadow .15s ease, transform .15s ease}
+    .btn:hover{box-shadow:0 0 0 3px rgba(99,102,241,.18); transform: translateY(-1px)}
+    .btn-prim{border-color:#6366f180; background:linear-gradient(180deg,#4f46e5,#4338ca); box-shadow:0 10px 20px rgba(79,70,229,.28)}
+    .btn-danger{border-color:#fb718580;background:linear-gradient(180deg,#ef4444,#dc2626)}
+    .btn-amber{border-color:#fbbf2480;background:linear-gradient(180deg,#f59e0b,#d97706)}
+    .btn-green{border-color:#34d39980;background:linear-gradient(180deg,#10b981,#059669)}
+    .badge{font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid #64748b66;background:linear-gradient(180deg,#0e1730,#0b1226)}
+    .dead{opacity:.55;filter:grayscale(.35)}
+    .ping{position:relative}
+    .ping::after{content:"";position:absolute;inset:-4px;border-radius:999px;border:2px solid var(--okay);opacity:.4;animation:ping 1.2s cubic-bezier(0,0,.2,1) infinite}
+    @keyframes ping{0%{transform:scale(1);opacity:.4} 100%{transform:scale(1.5);opacity:0}}
+
+    /* 桌面：绿色呢绒台布效果（纯 CSS） */
+    .felt{
+      border:1px solid #335244; border-radius:14px; padding:16px;
+      background:
+        radial-gradient(800px 300px at -20% -30%, rgba(255,255,255,.06), transparent 60%),
+        radial-gradient(600px 280px at 120% -10%, rgba(255,255,255,.05), transparent 55%),
+        linear-gradient(180deg, var(--felt), var(--felt2));
+      box-shadow: inset 0 0 40px rgba(0,0,0,.35), inset 0 2px 0 rgba(255,255,255,.05);
+    }
+
+    /* 纸牌（自带前后面 + 翻牌动画） */
+    .card{
+      position:relative; width:62px; height:86px; margin:4px; display:inline-block;
+      perspective: 700px;
+    }
+    .card .inner{
+      position:absolute; inset:0; border-radius:12px; transform-style:preserve-3d;
+      transition: transform .5s ease;
+    }
+    .card .front, .card .back{
+      position:absolute; inset:0; border-radius:12px; backface-visibility:hidden;
+      display:flex; align-items:center; justify-content:center; gap:2px;
+      font-weight:700; letter-spacing:.5px;
+      border:1px solid #94a3b880;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 6px 16px rgba(0,0,0,.35);
+    }
+    .card .front{
+      background:linear-gradient(180deg,#10192d,#0a1224); color:#e2e8f0;
+    }
+    .card .back{
+      transform: rotateY(180deg);
+      background:
+        repeating-linear-gradient(45deg,#0d1226 0 6px,#0a1020 6px 12px),
+        linear-gradient(180deg,#0c1429,#0a1122);
+      color:#99a;
+      text-shadow:0 1px 0 rgba(0,0,0,.4);
+    }
+    .card.sel .inner{ outline:2px solid var(--accent); box-shadow:0 0 0 6px rgba(125,211,252,.13); transform: translateY(-4px) }
+    .flip .inner{ transform: rotateY(180deg); } /* 翻开动画（显示正面） */
+
+    .rank{font-size:22px; line-height:1}
+    .glyph{font-size:16px; opacity:.85}
+    .joker .front{ background:repeating-linear-gradient(45deg,#0e1833 0 7px,#0b142a 7px 14px); }
+
+    /* 骰子动画 */
+    .dice-wrap{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:50}
+    .dice{
+      width:120px; height:120px; border-radius:20px;
+      background:linear-gradient(180deg,#1f2937,#111827);
+      border:1px solid #93c5fd55; box-shadow:0 20px 60px rgba(59,130,246,.35), inset 0 3px 0 rgba(255,255,255,.06);
+      display:grid; place-items:center; animation:pop .55s cubic-bezier(.2,.8,.2,1);
+    }
+    @keyframes pop{0%{transform:scale(.6);opacity:.0} 100%{transform:scale(1);opacity:1}}
+
   </style>
 </head>
-<body class="bg-slate-100 min-h-screen">
-  <div class="max-w-6xl mx-auto p-4 md:p-6">
-    <header class="flex items-center justify-between mb-4">
-      <h1 class="text-2xl md:text-3xl font-bold">Liar’s Bar – Host / Join</h1>
-      <button id="btnResetAll" class="px-3 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700">刷新页面</button>
-    </header>
+<body class="min-h-screen">
+  <!-- 顶栏 -->
+  <header class="glass-strong sticky top-0 z-20">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="index.html" class="btn flex items-center gap-2">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9l5 4"/><path d="M6 9h12"/></svg>
+          返回主网页
+        </a>
+        <h1 class="text-xl md:text-2xl font-bold neon-title">Liar’s Bar</h1>
+      </div>
+      <button id="btnResetAll" class="btn">刷新页面</button>
+    </div>
+  </header>
 
-    <!-- Connect -->
-    <section id="connect" class="bg-white rounded-2xl shadow p-4 md:p-6">
-      <h2 class="text-xl font-semibold mb-3">进入或创建房间</h2>
+  <main class="max-w-6xl mx-auto px-4 py-6">
+    <!-- 连接/创建 -->
+    <section id="connect" class="glass rounded-2xl p-5 md:p-7">
+      <h2 class="text-lg md:text-xl font-semibold mb-4">进入或创建房间</h2>
       <div class="grid md:grid-cols-2 gap-4">
-        <div class="space-y-2">
-          <label class="block text-sm">你的昵称</label>
-          <input id="nick" class="w-full border rounded-lg p-2" placeholder="例如：Lucas" />
+        <div>
+          <label class="block text-sm opacity-90 mb-1">你的昵称</label>
+          <input id="nick" class="w-full rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text-[15px] outline-none focus:ring-2 focus:ring-sky-400/40" placeholder="例如：Lucas" />
         </div>
-        <div class="space-y-2">
-          <label class="block text-sm">房间号（加入时填写）</label>
-          <input id="roomInput" class="w-full border rounded-lg p-2" placeholder="例如：ABCD1" />
+        <div>
+          <label class="block text-sm opacity-90 mb-1">房间号（加入时填写）</label>
+          <input id="roomInput" class="w-full rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text-[15px] outline-none focus:ring-2 focus:ring-sky-400/40" placeholder="例如：ABCD1" />
         </div>
       </div>
-      <div class="mt-4 flex flex-wrap gap-3">
-        <button id="btnCreate" class="px-4 py-2 rounded-lg bg-indigo-600 text-white">我是主机（创建房间）</button>
-        <button id="btnJoin" class="px-4 py-2 rounded-lg bg-emerald-600 text-white">加入房间</button>
+      <div class="mt-5 flex flex-wrap gap-3">
+        <button id="btnCreate" class="btn btn-prim">我是主机（创建房间）</button>
+        <button id="btnJoin" class="btn btn-green">加入房间</button>
       </div>
-      <p class="text-slate-500 text-sm mt-3">当前为本地原型（BroadcastChannel），多开标签页即可联机测试。</p>
+      <p class="opacity-70 text-sm mt-3">本地原型（BroadcastChannel）：多开浏览器标签页即可联机测试。</p>
     </section>
 
-    <!-- Lobby -->
-    <section id="lobby" class="hidden bg-white rounded-2xl shadow p-4 md:p-6 mt-6">
+    <!-- 大厅 -->
+    <section id="lobby" class="hidden glass rounded-2xl p-5 md:p-7 mt-6">
       <div class="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 class="text-xl font-semibold">房间大厅</h2>
-          <div class="text-slate-600 text-sm">房间号：<span id="roomShow" class="font-mono px-2 py-1 bg-slate-100 rounded"></span></div>
-          <div class="text-slate-600 text-sm">我的身份：<span id="roleShow" class="font-semibold"></span></div>
+          <div class="text-[15px] opacity-80">房间号：<span id="roomShow" class="font-mono px-2 py-1 rounded bg-[#0b142a] border border-[#334155]"></span></div>
+          <div class="text-[15px] opacity-80 mt-1">我的身份：<span id="roleShow" class="font-semibold"></span></div>
         </div>
         <div id="hostPanel" class="hidden flex items-center gap-3">
           <div class="flex items-center gap-2">
-            <label class="text-sm">座位数（2–4）</label>
-            <select id="seatMax" class="border rounded-lg p-2"><option>2</option><option>3</option><option selected>4</option></select>
+            <label class="text-sm opacity-80">座位数（2–4）</label>
+            <select id="seatMax" class="rounded-xl bg-[#0b142a] border border-[#3b4a70] p-2.5">
+              <option>2</option><option>3</option><option selected>4</option>
+            </select>
           </div>
           <div class="flex items-center gap-2">
-            <label class="text-sm">起始手牌</label>
-            <input id="startHand" type="number" min="3" max="9" value="5" class="w-20 border rounded-lg p-2"/>
+            <label class="text-sm opacity-80">起始手牌</label>
+            <input id="startHand" type="number" min="3" max="9" value="5" class="w-20 rounded-xl bg-[#0b142a] border border-[#3b4a70] p-2.5"/>
           </div>
-          <button id="btnApply" class="px-3 py-2 rounded-lg bg-slate-700 text-white">应用设置</button>
-          <button id="btnStart" class="px-3 py-2 rounded-lg bg-indigo-600 text-white" disabled>开始游戏</button>
-          <button id="btnHostRestart" class="px-3 py-2 rounded-lg bg-amber-600 text-white">重开</button>
+          <button id="btnApply" class="btn">应用设置</button>
+          <button id="btnStart" class="btn btn-prim disabled:opacity-50" disabled>开始游戏</button>
+          <button id="btnHostRestart" class="btn btn-amber">重开</button>
         </div>
       </div>
 
-      <div id="seats" class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4"></div>
-      <p class="text-slate-500 text-sm mt-2">提示：点击空位即可入座；Host 调整座位数会出现/隐藏位置。</p>
+      <div id="seats" class="mt-5 grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+      <p class="opacity-70 text-sm mt-2">提示：点击空位即可入座；Host 调整座位数会出现/隐藏位置。</p>
     </section>
 
-    <!-- Game -->
-    <section id="game" class="hidden bg-white rounded-2xl shadow p-4 md:p-6 mt-6">
+    <!-- 游戏 -->
+    <section id="game" class="hidden glass rounded-2xl p-5 md:p-7 mt-6">
       <div class="flex flex-wrap items-center gap-2 mb-4">
         <span class="badge">回合：<b id="roundNo"></b></span>
-        <span class="badge">目标：<b id="targetRank" class="text-indigo-600"></b></span>
-        <span class="badge">当前：<b id="currentPlayer" class="text-emerald-600"></b></span>
-        <span id="yourTurnTag" class="badge hidden" style="border-color:#10b981;color:#059669">你的回合</span>
+        <span class="badge">目标：<b id="targetRank" class="text-sky-300"></b></span>
+        <span class="badge">当前：<b id="currentPlayer" class="text-emerald-300"></b></span>
+        <span id="yourTurnTag" class="badge hidden ping" style="border-color:#34d399;color:#34d399">你的回合</span>
       </div>
 
       <div id="playersRow" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4"></div>
 
-      <div class="bg-slate-50 rounded-xl p-3 mb-4 border">
+      <div class="felt mb-4">
         <div class="flex items-center justify-between">
           <h3 class="font-semibold">桌面</h3>
-          <div id="lastClaim" class="text-sm text-slate-600"></div>
+          <div id="lastClaim" class="text-sm opacity-80"></div>
         </div>
-        <div id="pot" class="mt-2"></div>
+        <div id="pot" class="mt-3"></div>
       </div>
 
       <div class="grid md:grid-cols-3 gap-4">
@@ -94,32 +182,38 @@
         <div class="md:col-span-1">
           <h3 class="font-semibold mb-2">操作</h3>
           <div class="flex flex-wrap gap-2">
-            <button id="btnPlay" class="px-4 py-2 rounded-lg bg-indigo-600 text-white disabled:opacity-50">出牌（0）</button>
-            <button id="btnLiar" class="px-4 py-2 rounded-lg bg-rose-600 text-white">质疑（LIAR!）</button>
-            <button id="btnReveal" class="px-4 py-2 rounded-lg bg-amber-500 text-white hidden">翻开判定</button>
+            <button id="btnPlay" class="btn btn-prim disabled:opacity-50">出牌（0）</button>
+            <button id="btnLiar" class="btn btn-danger">质疑（LIAR!）</button>
+            <button id="btnReveal" class="btn btn-amber hidden">翻开判定</button>
           </div>
-          <p class="text-slate-500 text-sm mt-2">只翻最近一次出牌，3 秒后判定；失败者掷骰（6 即死 / 同点第二次死亡）。</p>
+          <p class="opacity-80 text-sm mt-2">只翻最近一次出牌，3 秒后判定；失败者掷骰（6 即死 / 同点第二次死亡）。</p>
         </div>
       </div>
 
-      <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-6 hidden">
-        <div class="bg-black/80 text-white px-4 py-2 rounded-full shadow">提示</div>
+      <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-6 hidden z-30">
+        <div class="px-4 py-2 rounded-full shadow bg-black/70 text-white">提示</div>
       </div>
 
-      <div id="winnerWrap" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full text-center">
+      <!-- 骰子动画层 -->
+      <div id="diceLayer" class="dice-wrap hidden">
+        <div class="dice" id="diceBox"></div>
+      </div>
+
+      <div id="winnerWrap" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4 z-40">
+        <div class="glass-strong rounded-2xl p-6 max-w-md w-full text-center">
           <h3 class="text-xl font-bold mb-2">胜利！</h3>
           <p class="mb-4"><span id="winnerName" class="font-semibold"></span> 获得胜利 🎉</p>
           <div class="flex items-center justify-center gap-2">
-            <button id="btnBackLobby" class="px-4 py-2 rounded-lg bg-slate-700 text-white">返回大厅</button>
+            <button id="btnBackLobby" class="btn">返回大厅</button>
+            <a href="index.html" class="btn btn-green">返回主网页</a>
           </div>
         </div>
       </div>
     </section>
-  </div>
+  </main>
 
 <script>
-/** ===== Transport / Globals ===== **/
+/** ===== 传输 / 全局 ===== **/
 let ROOM_ID = null;
 let bc = null;
 const uid = crypto.randomUUID();
@@ -128,16 +222,15 @@ let isHost = false;
 function post(msg){ bc && bc.postMessage(msg); }
 function toast(msg){ const t=document.getElementById('toast'); t.firstElementChild.textContent=msg; t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'),1600); }
 
-// Deck helpers (2 Jokers + 6×A/Q/K)
+// 牌：2 Joker + 6×A/Q/K
 const TARGETS = ["A","Q","K"];
 const rnd = n => Math.floor(Math.random()*n);
 const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=rnd(i+1); [a[i],a[j]]=[a[j],a[i]];} return a; };
 function makeCustomDeck(){ const d=[]; d.push({r:"JOKER"},{r:"JOKER"}); for(let i=0;i<6;i++){d.push({r:"A"},{r:"Q"},{r:"K"});} return shuffle(d); }
-const cardText = c => c.r==="JOKER" ? "JOKER" : c.r;
 const isMatch = (c, target) => c.r==="JOKER" || c.r===target;
 function nextAliveFrom(state, idx){ const n=state.players.length; for(let k=1;k<=n;k++){const j=(idx+k)%n; if(state.players[j] && state.players[j].alive) return j;} return idx; }
 
-/** ===== Host authoritative state ===== **/
+/** ===== Host 权威状态 ===== **/
 let H = null;
 /* host init */
 function hostInit(roomId, name){
@@ -150,7 +243,6 @@ function hostInit(roomId, name){
     roundNo:0, target:null, turn:0,
     pot:[], awaitingReveal:false, challengerId:null,
   };
-  // Host 占 0 号位
   H.players[0] = { uid: me.uid, name: me.name, alive:true, rolls:[], rollMap:{}, hand:[] };
   broadcastLobby();
 }
@@ -170,7 +262,7 @@ function openChannel(){
   document.getElementById("hostPanel").classList.toggle("hidden", !isHost);
 }
 
-/** ===== Host controls ===== **/
+/** ===== Host 控制 ===== **/
 function hostApplySettings(){
   const newSeats = Math.max(2, Math.min(4, Number(document.getElementById("seatMax").value||4)));
   const startHand = Number(document.getElementById("startHand").value||5);
@@ -206,15 +298,15 @@ function hostStart(){
   H.turn = H.players.findIndex(p=>p && p.alive);
   H.pot = []; H.awaitingReveal=false; H.challengerId=null;
 
-  // 先让主机本地看到自己的手牌
+  // 主机先同步自己的手牌
   if (isHost){
     const hostSeat = H.players.findIndex(p=>p && p.uid===me.uid);
     if (hostSeat >= 0){ myHand = H.players[hostSeat].hand.slice(); myHandHash = hashHand(myHand); renderHandOnly(); }
   }
 
-  // 先把各自手牌发给对应玩家，再广播状态
+  // 先发手牌，再广播状态
   sendHands();
-  lastTurnUid = null; // 重置回合提示
+  lastTurnUid = null;
   broadcastState();
 }
 function hostRestart(){
@@ -223,7 +315,7 @@ function hostRestart(){
   broadcastLobby();
 }
 
-/** ===== Host game ops ===== **/
+/** ===== Host 游戏操作 ===== **/
 function hostTakeSeat(seat, _uid, name){
   if (seat<0 || seat>=H.players.length) return;
   if (H.players[seat]) return;
@@ -233,17 +325,15 @@ function hostTakeSeat(seat, _uid, name){
 }
 function hostPlay(_uid, indices){
   const seat = H.players.findIndex(p=>p && p.uid===_uid);
-  if (seat !== H.turn) return; // 不是你回合
+  if (seat !== H.turn) return;
   const p = H.players[seat]; if (!p || !p.alive) return;
   if (!Array.isArray(indices) || indices.length===0) return;
-  // 取牌
   const sorted = [...indices].sort((a,b)=>b-a);
   const cards=[]; for (const i of sorted){ if (i<0 || i>=p.hand.length) return; cards.push(p.hand.splice(i,1)[0]); }
   H.pot.push({by:p.uid, cards, declared:H.target});
   H.awaitingReveal=false; H.challengerId=null;
   H.turn = nextAliveFrom(H, H.turn);
   broadcastState();
-  // 给该玩家下发手牌；若是 Host，自行本地同步
   if (p.uid === me.uid && isHost){
     myHand = p.hand.slice(); myHandHash = hashHand(myHand); renderHandOnly();
   } else {
@@ -253,14 +343,12 @@ function hostPlay(_uid, indices){
 function hostLiar(_uid){
   H.challengerId = _uid;
   H.awaitingReveal = true;
-  // 清理上一次的翻面缓存
   lastReveal = null;
   broadcastState();
 }
 function hostReveal(){
   if (!H.awaitingReveal || H.pot.length===0) return;
   const last = H.pot[H.pot.length-1];
-  // 本地&广播只亮“最后一批”
   lastReveal = last.cards.map(c=>({...c}));
   renderAll();
   post({t:"REVEAL_VIEW", cards:last.cards.map(c=>({...c})) });
@@ -268,7 +356,7 @@ function hostReveal(){
   setTimeout(()=>{
     const truthful = last.cards.every(c=>isMatch(c, H.target));
     const loserId  = truthful ? H.challengerId : last.by;   // 失败者
-    const winnerId = truthful ? last.by : H.challengerId;   // ★ 胜者（下一轮先手）
+    const winnerId = truthful ? last.by : H.challengerId;   // 胜者（下一轮先手）
     const loserSeat  = H.players.findIndex(p=>p && p.uid===loserId);
     const winnerSeat = H.players.findIndex(p=>p && p.uid===winnerId);
 
@@ -278,8 +366,9 @@ function hostReveal(){
     P.rolls.push(roll); P.rollMap[roll]=(P.rollMap[roll]||0)+1;
     let dieNow = (roll===6) || (P.rollMap[roll]>=2);
     if (dieNow){ P.alive=false; P.hand=[]; }
+    // 广播一个骰子动画事件（内置 SVG）
+    post({t:"DICE_ANIM", who:P.name, value:roll});
 
-    // 重新发牌（仅存活），由胜者先手（若胜者死亡则找下一个存活）
     const startIndex = (winnerSeat>=0 && H.players[winnerSeat]?.alive) ? winnerSeat : nextAliveFrom(H, loserSeat);
     redealFrom(startIndex);
   }, 3000);
@@ -303,21 +392,17 @@ function redealFrom(startIndex){
   H.awaitingReveal=false; H.challengerId=null;
   lastReveal = null; lastTurnUid = null;
 
-  // 主机本地先同步手牌
   if (isHost){
     const hostSeat = H.players.findIndex(p=>p && p.uid===me.uid);
     if (hostSeat >= 0){ myHand = H.players[hostSeat].hand.slice(); myHandHash = hashHand(myHand); renderHandOnly(); }
   }
-
-  // 先发手牌，再广播状态（避免“轮到你了但没手牌”）
   sendHands();
   broadcastState();
 }
 function sendHands(){ H.players.forEach(p=>{ if (p && p.alive) post({t:"HAND", to:p.uid, hand:p.hand}); }); }
 
-/** ===== Back to lobby after win ===== **/
+/** ===== 胜利后回大厅 ===== **/
 function hostBackToLobbyReset(){
-  // 回到大厅：保留座位，复位状态，所有人恢复存活、清空手牌/骰点
   H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null;
   H.target=null; H.turn=0;
   H.players.forEach(p=>{ if(p){ p.alive=true; p.rolls=[]; p.rollMap={}; p.hand=[]; }});
@@ -325,7 +410,7 @@ function hostBackToLobbyReset(){
   enterLobbyUI();
 }
 
-/** ===== Broadcast helpers ===== **/
+/** ===== 广播助手 ===== **/
 function broadcastLobby(){
   const canStart = (H.players.filter(p=>p && p.alive).length >= 2);
   const lobby = {
@@ -346,7 +431,7 @@ function broadcastState(withWinner=false){
     turn: H.turn,
     awaitingReveal: H.awaitingReveal,
     lastClaim: H.pot.length? { by:H.pot[H.pot.length-1].by, count:H.pot[H.pot.length-1].cards.length } : null,
-    pot: H.pot.map(b=>({ by: b.by, count: b.cards.length })), // 只发数量，不发牌面
+    pot: H.pot.map(b=>({ by: b.by, count: b.cards.length })),
     players: H.players.map(p=> p ? {uid:p.uid,name:p.name,alive:p.alive, handCount:p.hand.length, rolls:p.rolls} : null),
     winner: winner ? {uid:winner.uid, name:winner.name} : null
   };
@@ -354,16 +439,52 @@ function broadcastState(withWinner=false){
   S = state; renderAll();
 }
 
-/** ===== Client-side snapshots ===== **/
+/** ===== 客户端快照 ===== **/
 let L = null; // lobby
 let S = null; // state
 let myHand = []; // only mine
-let myHandHash = ""; // 手牌版本，用来判断是否真的变化
+let myHandHash = ""; // 手牌哈希，避免不必要刷新
 let lastReveal = null;
-let lastTurnUid = null; // 用于“你的回合”提示节流
+let lastTurnUid = null;
 function hashHand(h){ return (h||[]).map(c=>c.r).join('|'); }
 
-/** ===== Message handler (both roles) ===== **/
+/** ===== UI 工具：牌面/图标/骰子 ===== **/
+function glyphFor(r){
+  switch(r){
+    case 'A': return '✪';
+    case 'K': return '♚';
+    case 'Q': return '👑';
+    case 'JOKER': return '🃏';
+    default: return '';
+  }
+}
+function cardFrontHTML(r){
+  return `<div class="front">${r!=='?'?`<span class="rank">${r==='JOKER'?'JOKER':r}</span><span class="glyph">${glyphFor(r)}</span>`:'<span class="rank">?</span>'}</div>`;
+}
+function cardBackHTML(){ return `<div class="back">🂠</div>`; }
+
+function showDice(value, who){
+  const layer = document.getElementById('diceLayer');
+  const box = document.getElementById('diceBox');
+  box.innerHTML = diceSVG(value) + (who?`<div style="margin-top:8px; font-size:14px; opacity:.9">${who}</div>`:'');
+  layer.classList.remove('hidden');
+  setTimeout(()=> layer.classList.add('hidden'), 1200);
+}
+function diceSVG(n){
+  // 简洁骰子 SVG（内置）
+  const spots = {
+    1:[[50,50]], 2:[[25,25],[75,75]], 3:[[25,25],[50,50],[75,75]],
+    4:[[25,25],[25,75],[75,25],[75,75]],
+    5:[[25,25],[25,75],[50,50],[75,25],[75,75]],
+    6:[[25,25],[25,50],[25,75],[75,25],[75,50],[75,75]]
+  }[n]||[[50,50]];
+  return `<svg viewBox="0 0 100 100" width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+    <rect x="6" y="6" width="88" height="88" rx="16" fill="#0b1224" stroke="#93c5fd" stroke-opacity=".55"/>
+    ${spots.map(([x,y])=>`<circle cx="${x}" cy="${y}" r="6" fill="#e5ecff"/>`).join('')}
+  </svg>`;
+}
+
+/** ===== 消息处理（Host & Guest） ===== **/
 function handleMessage(msg){
   switch(msg.t){
     case "HELLO": if (isHost){ broadcastLobby(); post({t:"WELCOME", from:"host"}); } break;
@@ -377,15 +498,10 @@ function handleMessage(msg){
     case "HOST_START": if (isHost) hostStart(); break;
     case "HOST_RESTART": if (isHost) hostRestart(); break;
     case "BACK_TO_LOBBY": if (isHost) hostBackToLobbyReset(); break;
-    case "HAND_REQ": 
-      // 目前已不轮询；保留以兼容，但 Host 只在需要时发 HAND（已在 sendHands() 实现）
-      if (isHost){ const p=H.players.find(x=>x && x.uid===msg.uid); if (p) post({t:"HAND", to:p.uid, hand:p.hand}); }
-      break;
+    case "HAND_REQ": if (isHost){ const p=H.players.find(x=>x && x.uid===msg.uid); if (p) post({t:"HAND", to:p.uid, hand:p.hand}); } break;
 
     case "STATE": if (!isHost){ S = msg.state; renderAll(); } break;
-    case "LOBBY":
-      if (!isHost){ L = msg.lobby; renderLobby(); enterLobbyUI(); }
-      break;
+    case "LOBBY": if (!isHost){ L = msg.lobby; renderLobby(); enterLobbyUI(); } break;
     case "HAND":
       if (msg.to === uid){
         const newHand = msg.hand||[];
@@ -393,10 +509,9 @@ function handleMessage(msg){
         if (newHash !== myHandHash){
           myHand = newHand;
           myHandHash = newHash;
-          selectedIndices.clear();   // 只有手牌真的变化才清空选择
-          renderAll();               // 重新评估按钮可用性
+          selectedIndices.clear();
+          renderAll();
         }
-        // 如果相同，就不打扰当前选择
       }
       break;
     case "REVEAL_VIEW":
@@ -406,10 +521,13 @@ function handleMessage(msg){
         renderAll();
       }
       break;
+    case "DICE_ANIM":
+      showDice(msg.value, msg.who||'');
+      break;
   }
 }
 
-/** ===== Lobby & Game UI switch ===== **/
+/** ===== UI 切换 ===== **/
 function enterLobbyUI(){
   document.getElementById("connect").classList.add("hidden");
   document.getElementById("game").classList.add("hidden");
@@ -420,21 +538,21 @@ function enterGameUI(){
   document.getElementById("game").classList.remove("hidden");
 }
 
-/** ===== Lobby UI ===== **/
+/** ===== 大厅渲染 ===== **/
 function renderLobby(){ renderLobbyLocal(L); }
 function renderLobbyLocal(lobby){
   const seats = document.getElementById("seats"); seats.innerHTML="";
   const seatsN = lobby.settings.seats;
   for(let i=0;i<seatsN;i++){
-    const cell = document.createElement('div'); cell.className = "border rounded-xl p-3 flex flex-col gap-2";
+    const cell = document.createElement('div'); cell.className = "rounded-xl p-3 border border-[#334155] bg-[#0b142a]";
     const occupant = lobby.seats[i];
     if (occupant){
-      cell.innerHTML = `<div class="font-semibold">座位 ${i+1}</div>
-        <div>${occupant.name}</div>
-        <div class="text-sm text-slate-600">${occupant.alive? "在座" : "淘汰"}</div>`;
+      cell.innerHTML = `<div class="font-semibold mb-1">座位 ${i+1}</div>
+        <div class="opacity-90">${occupant.name}</div>
+        <div class="text-sm opacity-70 mt-1">${occupant.alive? "在座" : "淘汰"}</div>`;
     } else {
-      cell.innerHTML = `<div class="font-semibold">座位 ${i+1}</div>
-        <button class="px-3 py-2 rounded-lg bg-emerald-600 text-white">加入此座位</button>`;
+      cell.innerHTML = `<div class="font-semibold mb-2">座位 ${i+1}</div>
+        <button class="btn btn-green w-full">加入此座位</button>`;
       const btn = cell.querySelector('button');
       btn.onclick = ()=> post({t:"TAKE_SEAT", seat:i, uid:uid, name:me.name});
     }
@@ -446,7 +564,7 @@ function renderLobbyLocal(lobby){
   }
 }
 
-/** ===== Game UI ===== **/
+/** ===== 游戏渲染 ===== **/
 function renderAll(){
   if (!S) return;
   if (S.winner){
@@ -460,52 +578,57 @@ function renderAll(){
   const currentPlayer = S.players[currentSeat];
   document.getElementById("currentPlayer").textContent = currentPlayer ? currentPlayer.name : "-";
 
-  // players row
+  // 玩家列
   const row = document.getElementById("playersRow"); row.innerHTML="";
   S.players.forEach((p,i)=>{
     if (p===null) return;
     const wrap = document.createElement('div');
-    wrap.className = "border rounded-xl p-3 flex flex-col gap-2 " + (i===currentSeat?"border-indigo-500":"border-slate-200");
+    wrap.className = "rounded-xl p-3 border " + (i===currentSeat?"border-sky-400/60":"border-[#334155] bg-[#0b142a]");
     if (!p.alive) wrap.classList.add("dead");
     const rollsTxt = p.rolls?.length ? p.rolls.join(", ") : "—";
     wrap.innerHTML = `
       <div class="flex items-center justify-between">
         <div class="font-semibold">${p.name}</div>
-        <div class="text-sm text-slate-500">手牌 ${p.handCount}</div>
+        <div class="text-sm opacity-80">手牌 ${p.handCount}</div>
       </div>
-      <div class="flex items-center gap-2 text-sm flex-wrap">
+      <div class="flex items-center gap-2 text-sm flex-wrap mt-1">
         <span class="badge">骰：${rollsTxt}</span>
-        ${p.alive ? '' : '<span class="badge" style="border-color:#ef4444;color:#ef4444">已淘汰</span>'}
-        ${i===currentSeat && p.alive ? '<span class="badge" style="border-color:#818cf8;color:#6366F1">出牌中</span>' : ''}
+        ${p.alive ? '' : '<span class="badge" style="border-color:#fb7185;color:#fb7185">已淘汰</span>'}
+        ${i===currentSeat && p.alive ? '<span class="badge" style="border-color:#818cf8;color:#a5b4fc">出牌中</span>' : ''}
       </div>`;
     row.appendChild(wrap);
   });
 
-  // 桌面：翻开阶段仅显示被质疑的“最后一批”
+  // 桌面（翻开阶段仅显示被质疑的“最后一批”）
   const potDiv = document.getElementById("pot"); potDiv.innerHTML="";
   if (S.pot.length){
     const dataBatches = S.awaitingReveal ? [ S.pot[S.pot.length-1] ] : S.pot;
-    dataBatches.forEach((batch)=>{
-      const rowDiv = document.createElement('div'); rowDiv.className = "flex items-center gap-2 mb-2";
+    dataBatches.forEach((batch, idx)=>{
+      const rowDiv = document.createElement('div'); rowDiv.className = "flex items-center gap-3 mb-2 flex-wrap";
       const who = (S.players.find(x=>x && x.uid===batch.by)||{}).name || "未知";
-      rowDiv.innerHTML = `<span class="text-sm text-slate-600">${who}：宣称 ${S.target} × ${batch.count}</span>`;
-      const cards = document.createElement('div');
+      rowDiv.innerHTML = `<span class="text-sm opacity-90 px-2 py-1 rounded bg-[#0b142a] border border-[#334155]">${who}：宣称 ${S.target} × ${batch.count}</span>`;
+      const cards = document.createElement('div'); cards.className="flex flex-wrap";
       for(let k=0;k<batch.count;k++){
-        const c=document.createElement('div'); c.className="card";
-        if (S.awaitingReveal && lastReveal && lastReveal[k]){
-          if (lastReveal[k].r === "JOKER") c.classList.add('joker');
-          c.textContent = cardText(lastReveal[k]);
+        const holder=document.createElement('div'); holder.className="card " + ((S.awaitingReveal && idx===dataBatches.length-1) ? "flip " : "");
+        const inner=document.createElement('div'); inner.className="inner";
+        if (S.awaitingReveal && idx===dataBatches.length-1 && lastReveal && lastReveal[k]){
+          // 翻开显示正面
+          const r = lastReveal[k].r;
+          inner.innerHTML = cardBackHTML()+cardFrontHTML(r);
+          if (r==="JOKER") holder.classList.add('joker');
         } else {
-          c.textContent="🂠";
+          // 背面
+          inner.innerHTML = cardFrontHTML('?')+cardBackHTML();
         }
-        cards.appendChild(c);
+        holder.appendChild(inner);
+        cards.appendChild(holder);
       }
       rowDiv.appendChild(cards); potDiv.appendChild(rowDiv);
     });
   }
   document.getElementById("lastClaim").textContent = S.lastClaim ? `最近：${(S.players.find(p=>p&&p.uid===S.lastClaim.by)||{}).name||"未知"} × ${S.lastClaim.count}` : "—";
 
-  // 回合控制
+  // 操作可用性
   const yourTurnTag = document.getElementById("yourTurnTag");
   const amIturn = (currentPlayer && currentPlayer.uid===uid && currentPlayer.alive);
   document.getElementById("btnReveal").classList.toggle("hidden", !S.awaitingReveal);
@@ -522,23 +645,29 @@ function renderAll(){
 
   renderHandOnly();
 }
+
+/** ===== 手牌渲染与选择 ===== **/
 const selectedIndices = new Set();
 function renderHandOnly(){
   const handDiv = document.getElementById("hand"); if (!handDiv) return;
   handDiv.innerHTML = "";
   const sel = selectedIndices;
-  myHand = myHand||[];
-  myHand.forEach((card, idx)=>{
-    const d=document.createElement('div');
-    d.className = "card"+(card.r==="JOKER"?" joker":"")+(sel.has(idx)?" sel":"");
-    d.textContent = cardText(card);
-    d.onclick = ()=>{ if (sel.has(idx)) sel.delete(idx); else sel.add(idx); document.getElementById("btnPlay").textContent = `出牌（${sel.size}）`; d.classList.toggle("sel"); };
-    handDiv.appendChild(d);
+  (myHand||[]).forEach((card, idx)=>{
+    const holder=document.createElement('div'); holder.className="card"+(card.r==="JOKER"?" joker":"")+(sel.has(idx)?" sel":"");
+    const inner=document.createElement('div'); inner.className="inner";
+    inner.innerHTML = cardFrontHTML(card.r)+cardBackHTML(); // 手牌始终显示正面
+    holder.appendChild(inner);
+    holder.onclick = ()=>{
+      if (sel.has(idx)) sel.delete(idx); else sel.add(idx);
+      document.getElementById("btnPlay").textContent = `出牌（${sel.size}）`;
+      holder.classList.toggle("sel");
+    };
+    handDiv.appendChild(holder);
   });
   document.getElementById("btnPlay").textContent = `出牌（${sel.size}）`;
 }
 
-/** ===== Wire controls ===== **/
+/** ===== 事件绑定 ===== **/
 document.getElementById("btnCreate").onclick = ()=>{
   const name = (document.getElementById("nick").value||"Player").trim();
   const rid = Math.random().toString(36).slice(2,7).toUpperCase();
@@ -581,8 +710,6 @@ document.getElementById("btnBackLobby").onclick = ()=> {
   document.getElementById("winnerWrap").classList.add("hidden");
   backLobbyLocalOrBroadcast();
 };
-
-// ⚠️ 已移除：自动 HAND_REQ 轮询（这就是导致“选择时间只有 1 秒”的元凶）
 </script>
 </body>
 </html>
