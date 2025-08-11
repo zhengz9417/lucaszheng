@@ -459,7 +459,7 @@ function glyphFor(r){
   }
 }
 function cardFrontHTML(r){
-  return `<div class="front">${r!=='?'?`<span class="rank">${r==='JOKER'?'JOKER':r}</span><span class="glyph">${glyphFor(r)}</span>`:'<span class="rank">?</span>'}</div>`;
+  return `<div class="front">${r!=='?'?`<span class="rank">${r==='JOKER'?'JK':r}</span><span class="glyph">${glyphFor(r)}</span>`:'<span class="rank">?</span>'}</div>`;
 }
 function cardBackHTML(){ return `<div class="back">🂠</div>`; }
 
@@ -713,3 +713,4 @@ document.getElementById("btnBackLobby").onclick = ()=> {
 </script>
 </body>
 </html>
+
