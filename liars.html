@@ -1,154 +1,392 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <title>Liar’s Bar – Host/Join (Firebase)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Firebase SDK (Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <!-- 你的项目配置 -->
+  <script src="firebase-init.js"></script>
+
+  <style>
+    :root{
+      --bg1:#0b1020; --bg2:#111936; --felt:#0e3a1c; --felt2:#0a2d15;
+      --panel:#10172bcc; --panel-strong:#0f162dcc;
+      --glow:#6ee7ff; --glow2:#a78bfa; --accent:#7dd3fc; --danger:#fb7185; --okay:#34d399; --amber:#fbbf24;
+    }
+    body{ font-family:'Oxanium',ui-sans-serif,system-ui; color:#e5ecff;
+      background:
+        radial-gradient(900px 600px at 10% -10%, #1a2759 0%, transparent 60%),
+        radial-gradient(900px 600px at 100% 10%, #1b2a5b 0%, transparent 55%),
+        linear-gradient(180deg,var(--bg1),var(--bg2));
+    }
+    .glass{background:var(--panel); backdrop-filter: blur(10px); border:1px solid #33415566; box-shadow: 0 10px 30px rgba(0,0,0,.3);}
+    .glass-strong{background:var(--panel-strong); backdrop-filter: blur(12px); border:1px solid #47556980;}
+    .neon-title{background: linear-gradient(90deg,var(--glow),var(--glow2)); -webkit-background-clip:text; background-clip:text; color:transparent; text-shadow:0 0 22px rgba(110,231,255,.28)}
+    .btn{border:1px solid #5b6b8a66; padding:.55rem 1rem; border-radius:.9rem; background:linear-gradient(180deg,#111a34,#0c1429); color:#e5ecff; transition: box-shadow .15s ease, transform .15s ease}
+    .btn:hover{box-shadow:0 0 0 3px rgba(99,102,241,.18); transform: translateY(-1px)}
+    .btn-prim{border-color:#6366f180; background:linear-gradient(180deg,#4f46e5,#4338ca); box-shadow:0 10px 20px rgba(79,70,229,.28)}
+    .btn-danger{border-color:#fb718580;background:linear-gradient(180deg,#ef4444,#dc2626)}
+    .btn-amber{border-color:#fbbf2480;background:linear-gradient(180deg,#f59e0b,#d97706)}
+    .btn-green{border-color:#34d39980;background:linear-gradient(180deg,#10b981,#059669)}
+    .badge{font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid #64748b66;background:linear-gradient(180deg,#0e1730,#0b1226)}
+    .dead{opacity:.55;filter:grayscale(.35)}
+    .ping{position:relative}
+    .ping::after{content:"";position:absolute;inset:-4px;border-radius:999px;border:2px solid var(--okay);opacity:.4;animation:ping 1.2s cubic-bezier(0,0,.2,1) infinite}
+    @keyframes ping{0%{transform:scale(1);opacity:.4} 100%{transform:scale(1.5);opacity:0}}
+
+    .felt{ border:1px solid #335244; border-radius:14px; padding:16px;
+      background:
+        radial-gradient(800px 300px at -20% -30%, rgba(255,255,255,.06), transparent 60%),
+        radial-gradient(600px 280px at 120% -10%, rgba(255,255,255,.05), transparent 55%),
+        linear-gradient(180deg, var(--felt), var(--felt2));
+      box-shadow: inset 0 0 40px rgba(0,0,0,.35), inset 0 2px 0 rgba(255,255,255,.05);
+    }
+    .pot-flash{animation:potFlash .5s ease;}
+    @keyframes potFlash{0%{box-shadow:0 0 0 0 rgba(125,211,252,.0)} 60%{box-shadow:0 0 0 8px rgba(125,211,252,.15)} 100%{box-shadow:0 0 0 0 rgba(125,211,252,.0)}}
+
+    .card{ position:relative; width:62px; height:86px; margin:4px; display:inline-block; perspective:700px; }
+    .card .inner{ position:absolute; inset:0; border-radius:12px; transform-style:preserve-3d; transition: transform .6s ease; transform: rotateY(0deg); }
+    .card .front, .card .back{
+      position:absolute; inset:0; border-radius:12px; backface-visibility:hidden;
+      display:flex; align-items:center; justify-content:center; gap:2px;
+      font-weight:700; letter-spacing:.5px;
+      border:1px solid #94a3b880;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 6px 16px rgba(0,0,0,.35);
+    }
+    .card .front{ background:linear-gradient(180deg,#10192d,#0a1224); color:#e2e8f0; }
+    .card .back{
+      transform: rotateY(180deg);
+      background:
+        repeating-linear-gradient(45deg,#0d1226 0 6px,#0a1020 6px 12px),
+        linear-gradient(180deg,#0c1429,#0a1122);
+      color:#99a; text-shadow:0 1px 0 rgba(0,0,0,.4);
+    }
+    .face-back .inner{ transform: rotateY(180deg); }
+    .card.sel .inner{ outline:2px solid var(--accent); box-shadow:0 0 0 6px rgba(125,211,252,.13); transform: translateY(-4px) }
+    .rank{font-size:22px; line-height:1}
+    .glyph{font-size:16px; opacity:.85}
+    .joker .front{ background:repeating-linear-gradient(45deg,#0e1833 0 7px,#0b142a 7px 14px); }
+
+    .burst{animation:burst .18s ease both;}
+    @keyframes burst{ 0%{transform:translateY(-2px) scale(1.02)} 100%{transform:translateY(-8px) scale(1.08)} }
+    .shake{animation:shake .38s cubic-bezier(.36,.07,.19,.97) both;}
+    @keyframes shake{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(3px)}30%,50%,70%{transform:translateX(-5px)}40%,60%{transform:translateX(5px)}}
+
+    .dice-wrap{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:80}
+    .dice{ width:120px; height:120px; border-radius:20px; background:linear-gradient(180deg,#1f2937,#111827);
+      border:1px solid #93c5fd55; box-shadow:0 20px 60px rgba(59,130,246,.35), inset 0 3px 0 rgba(255,255,255,.06);
+      display:grid; place-items:center; animation:pop .55s cubic-bezier(.2,.8,.2,1); }
+    @keyframes pop{0%{transform:scale(.6);opacity:.0} 100%{transform:scale(1);opacity:1}}
+
+    .smoke-layer{position:fixed; inset:0; pointer-events:none; z-index:40; overflow:hidden;}
+    .puff{position:absolute; bottom:-60px; width:120px; height:120px; border-radius:50%;
+      background:radial-gradient(circle at 30% 30%, rgba(255,255,255,.15), rgba(255,255,255,.03) 60%, transparent 70%);
+      filter: blur(2px); opacity:.0; animation:rise linear forwards;}
+    @keyframes rise{0%{transform:translate(var(--x,0),0) scale(.6);opacity:0}10%{opacity:.25}80%{opacity:.15}100%{transform:translate(var(--x,0),-120vh) scale(1.2);opacity:0}}
+
+    .confetti{position:fixed; top:-10px; width:8px; height:14px; opacity:.9; z-index:60; background:linear-gradient(180deg,#fff,#ddd); will-change:transform; animation:fall linear forwards;}
+    @keyframes fall{to{transform:translate3d(var(--tx),110vh,0) rotate(var(--rot))}}
+    .roll-banner{margin-top:.5rem; font-size:.85rem; border:1px solid #334155; background:#0b142a; padding:.35rem .6rem; border-radius:.6rem}
+  </style>
+</head>
+<body class="min-h-screen">
+  <!-- 顶栏 -->
+  <header class="glass-strong sticky top-0 z-20">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="index.html" class="btn flex items-center gap-2" id="hdrBack">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9l5 4"/><path d="M6 9h12"/></svg>
+          <span id="hdrBackTxt">返回主网页</span>
+        </a>
+        <h1 class="text-xl md:text-2xl font-bold neon-title" id="hdrTitle">Liar’s Bar</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="authBadge" class="badge">Auth: —</span>
+        <!-- 仅 Host 可见 -->
+        <button id="btnResetAll" class="btn hidden">刷新页面</button>
+        <!-- 仅 Guest 可见：退出房间 -->
+        <button id="btnLeaveRoom" class="btn btn-danger hidden">退出房间</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 烟雾层 -->
+  <div id="smokeLayer" class="smoke-layer hidden"></div>
+
+  <main class="max-w-6xl mx-auto px-4 py-6">
+    <!-- 连接/创建 -->
+    <section id="connect" class="glass rounded-2xl p-5 md:p-7">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-lg md:text-xl font-semibold" id="connTitle">进入或创建房间</h2>
+        <div class="flex items-center gap-2">
+          <span class="opacity-80 select-none">🌐 语言 / Language</span>
+          <select id="langSel" class="rounded-xl bg-[#0b142a] border border-[#3b4a70] p-2.5">
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm opacity-90 mb-1" id="lblNick">你的昵称</label>
+          <input id="nick" class="w-full rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text-[15px] placeholder-gray-400 outline-none focus:ring-2 focus:ring-sky-400/40" placeholder="例如：Lucas" />
+        </div>
+        <div>
+          <label class="block text-sm opacity-90 mb-1" id="lblRoom">房间号（加入时填写）</label>
+          <input id="roomInput" class="w-full rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text-[15px] placeholder-gray-400 outline-none focus:ring-2 focus:ring-sky-400/40" placeholder="例如：ABCD1" />
+        </div>
+      </div>
+      <div class="mt-5 flex flex-wrap gap-3">
+        <button id="btnCreate" class="btn btn-prim">我是主机（创建房间）</button>
+        <button id="btnJoin" class="btn btn-green">加入房间</button>
+      </div>
+      <p class="opacity-70 text-sm mt-3" id="localNote">跨设备联机版（Firebase Firestore 实时）。</p>
+    </section>
+
+    <!-- 大厅 -->
+    <section id="lobby" class="hidden glass rounded-2xl p-5 md:p-7 mt-6">
+      <div class="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <div class="text-[15px] opacity-80"><span id="lblRoomShow">房间号：</span><span id="roomShow" class="font-mono px-2 py-1 rounded bg-[#0b142a] border border-[#334155]"></span></div>
+          <div class="text-[15px] opacity-80 mt-1"><span id="lblRole">我的身份：</span><span id="roleShow" class="font-semibold"></span></div>
+        </div>
+        <div id="hostPanel" class="hidden flex items-center gap-3 flex-wrap">
+          <div class="flex items-center gap-2">
+            <label class="text-sm opacity-80" id="lblSeats">座位数（2–4）</label>
+            <select id="seatMax" class="rounded-xl bg-[#0b142a] border border-[#3b4a70] p-2.5">
+              <option>2</option><option>3</option><option selected>4</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-sm opacity-80" id="lblStartHand">起始手牌</label>
+            <input id="startHand" type="number" min="3" max="9" value="5" class="w-20 rounded-xl bg-[#0b142a] border border-[#3b4a70] p-2.5"/>
+          </div>
+          <button id="btnApply" class="btn">应用设置</button>
+          <button id="btnStart" class="btn btn-prim disabled:opacity-50" disabled>开始游戏</button>
+          <button id="btnHostRestart" class="btn btn-amber">重开</button>
+        </div>
+      </div>
+      <div id="seats" class="mt-5 grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+      <p class="opacity-70 text-sm mt-2" id="seatsTip">提示：点击空位即可入座；Host 调整座位数会出现/隐藏位置。</p>
+    </section>
+
+    <!-- 游戏 -->
+    <section id="game" class="hidden glass rounded-2xl p-5 md:p-7 mt-6">
+      <div class="flex flex-wrap items-center gap-2 mb-4">
+        <span class="badge"><span id="lblRound">回合：</span><b id="roundNo"></b></span>
+        <span class="badge"><span id="lblTarget">目标：</span><b id="targetRank" class="text-sky-300"></b></span>
+        <span class="badge"><span id="lblCurrent">当前：</span><b id="currentPlayer" class="text-emerald-300"></b></span>
+        <span id="yourTurnTag" class="badge hidden ping" style="border-color:#34d399;color:#34d399">你的回合</span>
+
+        <!-- 游戏内：仅 Host 可见的新一局 -->
+        <button id="btnHostNewGame" class="btn btn-amber hidden ml-auto">新一局</button>
+      </div>
+
+      <div id="playersRow" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4"></div>
+
+      <div id="felt" class="felt mb-4">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold" id="lblTable">桌面</h3>
+          <div id="lastClaim" class="text-sm opacity-80"></div>
+        </div>
+        <div id="pot" class="mt-3"></div>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-4">
+        <div class="md:col-span-2">
+          <h3 class="font-semibold mb-2" id="lblMyHand">我的手牌（点击选择任意张）</h3>
+          <div id="hand" class="min-h-[92px]"></div>
+        </div>
+        <div class="md:col-span-1">
+          <h3 class="font-semibold mb-2" id="lblActions">操作</h3>
+          <div class="flex flex-wrap gap-2">
+            <button id="btnPlay" class="btn btn-prim disabled:opacity-50">出牌（0）</button>
+            <button id="btnLiar" class="btn btn-danger">liar</button>
+            <button id="btnReveal" class="btn btn-amber hidden">翻开判定</button>
+          </div>
+          <p class="opacity-80 text-sm mt-2" id="revealHint">只翻最近一次出牌，3 秒后判定并出现掷骰动画；失败者掷到 6 立刻死亡，或掷到同点第二次死亡。</p>
+        </div>
+      </div>
+
+      <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-6 hidden z-30">
+        <div class="px-4 py-2 rounded-full shadow bg-black/70 text-white">提示</div>
+      </div>
+
+      <!-- 骰子动画层 -->
+      <div id="diceLayer" class="dice-wrap hidden">
+        <div class="dice" id="diceBox"></div>
+      </div>
+
+      <div id="winnerWrap" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4 z-40">
+        <div class="glass-strong rounded-2xl p-6 max-w-md w-full text-center">
+          <h3 class="text-xl font-bold mb-2" id="winTitle">胜利！</h3>
+          <p class="mb-4"><span id="winnerName" class="font-semibold"></span> <span id="winText">获得胜利 🎉</span></p>
+          <div class="flex items-center justify-center gap-2 flex-wrap">
+            <button id="btnNewGame" class="btn btn-prim hidden">再来一局</button>
+            <button id="btnBackLobby" class="btn">返回大厅</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
 <script>
 /* ===================== i18n ===================== */
 let LANG = localStorage.getItem('lb_lang') || 'zh';
 const i18n = {
-  zh:{back:"返回主网页", title:"Liar’s Bar", refresh:"刷新页面",
-    connectTitle:"进入或创建房间", nick:"你的昵称", room:"房间号（加入时填写）",
-    create:"我是主机（创建房间）", join:"加入房间",
-    localNote:"跨设备联机版（Firebase Firestore 实时）。",
-    roomShow:"房间号：", role:"我的身份：", roleHost:"Host", roleGuest:"Guest",
-    seats:"座位数（2–4）", startHand:"起始手牌",
-    apply:"应用设置", start:"开始游戏", restart:"重开",
-    seatsTip:"提示：点击空位即可入座；Host 调整座位数会出现/隐藏位置。",
-    seatN:n=>`座位 ${n}`, joinSeat:"加入此座位", leaveSeat:"退出座位", seated:"在座", eliminated:"淘汰",
-    round:"回合：", target:"目标：", current:"当前：", yourTurn:"你的回合",
-    table:"桌面", recent:(name,c)=>`最近：${name} × ${c}`, myHand:"我的手牌（点击选择任意张）", actions:"操作",
-    play:c=>`出牌（${c}）`, liar:"liar", reveal:"翻开判定",
-    revealHint:"只翻最近一次出牌，3 秒后判定并出现掷骰动画；失败者掷到 6 立刻死亡，或掷到同点第二次死亡。",
-    handCount:c=>`手牌 ${c}`, diceList:r=>`骰：${r}`, playing:"出牌中", unknown:"未知",
-    toastTurn:"你的回合", needOne:"请选择至少 1 张", need2p:"至少需要 2 名玩家入座",
-    notEnough:"牌不够，请调小起始手牌或座位数",
-    winner:"胜利！", winText:"获得胜利 🎉", newGame:"再来一局", backLobby:"返回大厅",
-    claim:(who,target,count)=>`${who}：宣称 ${target} × ${count}`,
-    rollBanner:(name,v,dead)=> dead ? `${name} 掷出 ${v} —— 淘汰！` : `${name} 掷出 ${v} —— 安全`,
-    phNick:"例如：Lucas", phRoom:"例如：ABCD1",
-  },
-  en:{back:"Back to Home", title:"Liar’s Bar", refresh:"Refresh",
-    connectTitle:"Join or Create a Room", nick:"Your nickname", room:"Room ID (to join)",
-    create:"I'm Host (Create)", join:"Join Room",
-    localNote:"Cross-device realtime (Firebase Firestore).",
-    roomShow:"Room:", role:"Role:", roleHost:"Host", roleGuest:"Guest",
-    seats:"Seats (2–4)", startHand:"Start hand",
-    apply:"Apply", start:"Start Game", restart:"Restart",
-    seatsTip:"Tip: click an empty seat to join; changing seats count shows/hides slots.",
-    seatN:n=>`Seat ${n}`, joinSeat:"Join this seat", leaveSeat:"Leave seat", seated:"Seated", eliminated:"Eliminated",
-    round:"Round:", target:"Target:", current:"Current:", yourTurn:"Your turn",
-    table:"Table", recent:(name,c)=>`Recent: ${name} × ${c}`, myHand:"Your hand (pick any cards)", actions:"Actions",
-    play:c=>`Play (${c})`, liar:"liar", reveal:"Reveal",
-    revealHint:"Only flip the last batch; resolve in 3s, then dice anim. Roll 6 = death, or 2nd time same pip = death.",
-    handCount:c=>`Cards ${c}`, diceList:r=>`Dice: ${r}`, playing:"Playing", unknown:"Unknown",
-    toastTurn:"Your turn", needOne:"Select at least 1", need2p:"Need at least 2 players",
-    notEnough:"Not enough cards, reduce seats or start hand",
-    winner:"Victory!", winText:"wins 🎉", newGame:"New Game", backLobby:"Back to Lobby",
-    claim:(who,target,count)=>`${who}: claims ${target} × ${count}`,
-    rollBanner:(name,v,dead)=> dead ? `${name} rolled ${v} — DEAD!` : `${name} rolled ${v} — safe`,
-    phNick:"e.g., Lucas", phRoom:"e.g., ABCD1",
-  }
+  zh:{back:"返回主网页", title:"Liar’s Bar", refresh:"刷新页面",
+    connectTitle:"进入或创建房间", nick:"你的昵称", room:"房间号（加入时填写）",
+    create:"我是主机（创建房间）", join:"加入房间",
+    localNote:"跨设备联机版（Firebase Firestore 实时）。",
+    roomShow:"房间号：", role:"我的身份：", roleHost:"Host", roleGuest:"Guest",
+    seats:"座位数（2–4）", startHand:"起始手牌",
+    apply:"应用设置", start:"开始游戏", restart:"重开",
+    seatsTip:"提示：点击空位即可入座；Host 调整座位数会出现/隐藏位置。",
+    seatN:n=>`座位 ${n}`, joinSeat:"加入此座位", leaveSeat:"退出座位", seated:"在座", eliminated:"淘汰",
+    round:"回合：", target:"目标：", current:"当前：", yourTurn:"你的回合",
+    table:"桌面", recent:(name,c)=>`最近：${name} × ${c}`, myHand:"我的手牌（点击选择任意张）", actions:"操作",
+    play:c=>`出牌（${c}）`, liar:"liar", reveal:"翻开判定",
+    revealHint:"只翻最近一次出牌，3 秒后判定并出现掷骰动画；失败者掷到 6 立刻死亡，或掷到同点第二次死亡。",
+    handCount:c=>`手牌 ${c}`, diceList:r=>`骰：${r}`, playing:"出牌中", unknown:"未知",
+    toastTurn:"你的回合", needOne:"请选择至少 1 张", need2p:"至少需要 2 名玩家入座",
+    notEnough:"牌不够，请调小起始手牌或座位数",
+    winner:"胜利！", winText:"获得胜利 🎉", newGame:"新一局",
+    claim:(who,target,count)=>`${who}：宣称 ${target} × ${count}`,
+    rollBanner:(name,v,dead)=> dead ? `${name} 掷出 ${v} —— 淘汰！` : `${name} 掷出 ${v} —— 安全`,
+    phNick:"例如：Lucas", phRoom:"例如：ABCD1",
+  },
+  en:{back:"Back to Home", title:"Liar’s Bar", refresh:"Refresh",
+    connectTitle:"Join or Create a Room", nick:"Your nickname", room:"Room ID (to join)",
+    create:"I'm Host (Create)", join:"Join Room",
+    localNote:"Cross-device realtime (Firebase Firestore).",
+    roomShow:"Room:", role:"Role:", roleHost:"Host", roleGuest:"Guest",
+    seats:"Seats (2–4)", startHand:"Start hand",
+    apply:"Apply", start:"Start Game", restart:"Restart",
+    seatsTip:"Tip: click an empty seat to join; changing seats count shows/hides slots.",
+    seatN:n=>`Seat ${n}`, joinSeat:"Join this seat", leaveSeat:"Leave seat", seated:"Seated", eliminated:"Eliminated",
+    round:"Round:", target:"Target:", current:"Current:", yourTurn:"Your turn",
+    table:"Table", recent:(name,c)=>`Recent: ${name} × ${c}`, myHand:"Your hand (pick any cards)", actions:"Actions",
+    play:c=>`Play (${c})`, liar:"liar", reveal:"Reveal",
+    revealHint:"Only flip the last batch; resolve in 3s, then dice anim. Roll 6 = death, or 2nd time same pip = death.",
+    handCount:c=>`Cards ${c}`, diceList:r=>`Dice: ${r}`, playing:"Playing", unknown:"Unknown",
+    toastTurn:"Your turn", needOne:"Select at least 1", need2p:"Need at least 2 players",
+    notEnough:"Not enough cards, reduce seats or start hand",
+    winner:"Victory!", winText:"wins 🎉", newGame:"New Game",
+    claim:(who,target,count)=>`${who}: claims ${target} × ${count}`,
+    rollBanner:(name,v,dead)=> dead ? `${name} rolled ${v} — DEAD!` : `${name} rolled ${v} — safe`,
+    phNick:"e.g., Lucas", phRoom:"e.g., ABCD1",
+  }
 };
 function t(k,...a){ const v=i18n[LANG][k]; return typeof v==='function'?v(...a):(v??k); }
 function applyStaticTexts(){
-  document.documentElement.lang = LANG;
-  document.getElementById('hdrBackTxt').textContent = t('back');
-  document.getElementById('hdrTitle').textContent = t('title');
-  document.getElementById('btnResetAll').textContent = t('refresh');
-  document.getElementById('connTitle').textContent = t('connectTitle');
-  document.getElementById('lblNick').textContent = t('nick');
-  document.getElementById('lblRoom').textContent = t('room');
-  document.getElementById('btnCreate').textContent = t('create');
-  document.getElementById('btnJoin').textContent = t('join');
-  document.getElementById('localNote').textContent = t('localNote');
-  document.getElementById('lblRoomShow').textContent = t('roomShow');
-  document.getElementById('lblRole').textContent = t('role');
-  document.getElementById('lblSeats').textContent = t('seats');
-  document.getElementById('lblStartHand').textContent = t('startHand');
-  document.getElementById('btnApply').textContent = t('apply');
-  document.getElementById('btnStart').textContent = t('start');
-  const hostRestartBtn = document.getElementById('btnHostRestart'); if(hostRestartBtn) hostRestartBtn.textContent = t('restart');
-  document.getElementById('seatsTip').textContent = t('seatsTip');
-  document.getElementById('lblRound').textContent = t('round');
-  document.getElementById('lblTarget').textContent = t('target');
-  document.getElementById('lblCurrent').textContent = t('current');
-  document.getElementById('yourTurnTag').textContent = t('yourTurn');
-  document.getElementById('lblTable').textContent = t('table');
-  document.getElementById('lblMyHand').textContent = t('myHand');
-  document.getElementById('lblActions').textContent = t('actions');
-  document.getElementById('btnLiar').textContent = t('liar');
-  document.getElementById('btnReveal').textContent = t('reveal');
-  document.getElementById('revealHint').textContent = t('revealHint');
-  document.getElementById('winTitle').textContent = t('winner');
-  document.getElementById('winText').textContent = t('winText');
-  const ng = document.getElementById('btnNewGame'); if (ng) ng.textContent = t('newGame');
-  const bl = document.getElementById('btnBackLobby'); if (bl) bl.textContent = t('backLobby');
-  document.getElementById('nick').placeholder = t('phNick');
-  document.getElementById('roomInput').placeholder = t('phRoom');
+  document.documentElement.lang = LANG;
+  document.getElementById('hdrBackTxt').textContent = t('back');
+  document.getElementById('hdrTitle').textContent = t('title');
+  document.getElementById('btnResetAll').textContent = t('refresh');
+  document.getElementById('connTitle').textContent = t('connectTitle');
+  document.getElementById('lblNick').textContent = t('nick');
+  document.getElementById('lblRoom').textContent = t('room');
+  document.getElementById('btnCreate').textContent = t('create');
+  document.getElementById('btnJoin').textContent = t('join');
+  document.getElementById('localNote').textContent = t('localNote');
+  document.getElementById('lblRoomShow').textContent = t('roomShow');
+  document.getElementById('lblRole').textContent = t('role');
+  document.getElementById('lblSeats').textContent = t('seats');
+  document.getElementById('lblStartHand').textContent = t('startHand');
+  document.getElementById('btnApply').textContent = t('apply');
+  document.getElementById('btnStart').textContent = t('start');
+  document.getElementById('btnHostRestart').textContent = t('restart');
+  document.getElementById('seatsTip').textContent = t('seatsTip');
+  document.getElementById('lblRound').textContent = t('round');
+  document.getElementById('lblTarget').textContent = t('target');
+  document.getElementById('lblCurrent').textContent = t('current');
+  document.getElementById('yourTurnTag').textContent = t('yourTurn');
+  document.getElementById('lblTable').textContent = t('table');
+  document.getElementById('lblMyHand').textContent = t('myHand');
+  document.getElementById('lblActions').textContent = t('actions');
+  document.getElementById('btnLiar').textContent = t('liar');
+  document.getElementById('btnReveal').textContent = t('reveal');
+  document.getElementById('revealHint').textContent = t('revealHint');
+  document.getElementById('winTitle').textContent = t('winner');
+  document.getElementById('winText').textContent = t('winText');
+  const ng = document.getElementById('btnNewGame'); if (ng) ng.textContent = t('newGame');
+  const ng2 = document.getElementById('btnHostNewGame'); if (ng2) ng2.textContent = t('newGame');
+  document.getElementById('nick').placeholder = t('phNick');
+  document.getElementById('roomInput').placeholder = t('phRoom');
 }
 
 /* ===================== Firebase 基础 ===================== */
 const app = firebase.initializeApp(window.firebaseConfig);
 const auth = firebase.auth();
-const db   = firebase.firestore();
+const db   = firebase.firestore();
 
 function setAuthBadge(txt, ok=false){
-  const b = document.getElementById('authBadge');
-  b.textContent = 'Auth: ' + txt;
-  b.style.borderColor = ok ? '#34d39980' : '#fb718580';
-  b.style.color = ok ? '#34d399' : '#fb7185';
+  const b = document.getElementById('authBadge');
+  b.textContent = 'Auth: ' + txt;
+  b.style.borderColor = ok ? '#34d39980' : '#fb718580';
+  b.style.color = ok ? '#34d399' : '#fb7185';
 }
 
 async function ensureAuth(){
-  if (auth.currentUser){ setAuthBadge(auth.currentUser.uid.slice(0,8)+'…', true); return auth.currentUser; }
-  try{
-    const u = await auth.signInAnonymously();
-    setAuthBadge(u.user.uid.slice(0,8)+'…', true);
-    return u.user;
-  }catch(e){
-    console.error('Auth failed:', e);
-    setAuthBadge('ERR', false);
-    alert('登录失败：' + (e && e.message ? e.message : e));
-    throw e;
-  }
+  if (auth.currentUser){ setAuthBadge(auth.currentUser.uid.slice(0,8)+'…', true); return auth.currentUser; }
+  try{
+    const u = await auth.signInAnonymously();
+    setAuthBadge(u.user.uid.slice(0,8)+'…', true);
+    return u.user;
+  }catch(e){
+    console.error('Auth failed:', e);
+    setAuthBadge('ERR', false);
+    alert('登录失败：' + (e && e.message ? e.message : e));
+    throw e;
+  }
 }
 
 /* ===================== 会话保存 / 恢复 ===================== */
 function saveSession(roomId, name){
-  localStorage.setItem('lb_session', JSON.stringify({roomId, name, t:Date.now()}));
-  localStorage.setItem('lb_lang', LANG);
+  localStorage.setItem('lb_session', JSON.stringify({roomId, name, t:Date.now()}));
+  localStorage.setItem('lb_lang', LANG);
 }
 async function tryAutoResume(){
-  const savedStr = localStorage.getItem('lb_session');
-  if (!savedStr) return false;
-  const saved = JSON.parse(savedStr||'{}');
-  if (!saved.roomId) return false;
-  ROOM_ID = saved.roomId; me.name = saved.name || 'Player';
-  // 预判角色，控制 UI
-  const lobbyDoc = await roomRefs(ROOM_ID).lobby.get().catch(()=>null);
-  if (!lobbyDoc || !lobbyDoc.exists) return false;
+  const savedStr = localStorage.getItem('lb_session');
+  if (!savedStr) return false;
+  const saved = JSON.parse(savedStr||'{}');
+  if (!saved.roomId) return false;
+  ROOM_ID = saved.roomId; me.name = saved.name || 'Player';
+  const lobbyDoc = await roomRefs(ROOM_ID).lobby.get().catch(()=>null);
+  if (!lobbyDoc || !lobbyDoc.exists) return false;
 
-  const hUid = lobbyDoc.data().hostUid;
-  isHost = (auth.currentUser && auth.currentUser.uid === hUid);
+  const hUid = lobbyDoc.data().hostUid;
+  isHost = (auth.currentUser && auth.currentUser.uid === hUid);
 
-  // Host 需要能继续处理动作：构造最小 H（从 lobby/state 复原必要字段）
-  if (isHost){
-    const stDoc = await roomRefs(ROOM_ID).state.get().catch(()=>null);
-    const st = (stDoc && stDoc.exists) ? stDoc.data() : {};
-    H = {
-      settings: lobbyDoc.data().settings || { seats:4, startHand:5 },
-      players: (lobbyDoc.data().seats||[]).map(s=> s? { uid:s.uid, name:s.name, alive:s.alive!==false, rolls:s.rolls||[], rollMap:{}, hand:[] } : null),
-      roundNo: st.roundNo||0, target: st.target||null, turn: st.turn||0,
-      pot:[], awaitingReveal: st.awaitingReveal||false, challengerId:null, revealing:false
-    };
-    attachCommonListeners();
-    attachHostActionListener();
-  }else{
-    attachCommonListeners();
-  }
-  enterLobbyUI();
-  document.getElementById("roomShow").textContent = ROOM_ID;
-  document.getElementById("roleShow").textContent = isHost ? t('roleHost') : t('roleGuest');
-  document.getElementById("hostPanel").classList.toggle('hidden', !isHost);
-  // 刷新按钮只给 Host
-  document.getElementById("btnResetAll").classList.toggle('hidden', !isHost);
-  return true;
+  if (isHost){
+    const stDoc = await roomRefs(ROOM_ID).state.get().catch(()=>null);
+    const st = (stDoc && stDoc.exists) ? stDoc.data() : {};
+    H = {
+      settings: lobbyDoc.data().settings || { seats:4, startHand:5 },
+      players: (lobbyDoc.data().seats||[]).map(s=> s? { uid:s.uid, name:s.name, alive:s.alive!==false, rolls:s.rolls||[], rollMap:{}, hand:[] } : null),
+      roundNo: st.roundNo||0, target: st.target||null, turn: st.turn||0,
+      pot:[], awaitingReveal: st.awaitingReveal||false, challengerId:null, revealing:false
+    };
+    attachCommonListeners();
+    attachHostActionListener();
+  }else{
+    attachCommonListeners();
+  }
+  enterLobbyUI();
+  document.getElementById("roomShow").textContent = ROOM_ID;
+  document.getElementById("roleShow").textContent = isHost ? t('roleHost') : t('roleGuest');
+  document.getElementById("hostPanel").classList.toggle('hidden', !isHost);
+  document.getElementById("btnResetAll").classList.toggle('hidden', !isHost);
+  document.getElementById("btnLeaveRoom").classList.toggle('hidden', isHost); // Guest 才显示
+  return true;
 }
 
 /* ===================== 全局与工具 ===================== */
@@ -167,334 +405,342 @@ const isMatch = (c, target) => c.r==="JOKER" || c.r===target;
 function nextAliveFrom(state, idx){ const n=state.players.length; for(let k=1;k<=n;k++){const j=(idx+k)%n; if(state.players[j] && state.players[j].alive) return j;} return idx; }
 
 function roomRefs(roomId){
-  const room = db.collection('rooms').doc(roomId);
-  return {
-    room,
-    lobby: room.collection('meta').doc('lobby'),
-    state: room.collection('meta').doc('state'),
-    actions: room.collection('actions'),
-    events: room.collection('events'),
-    hands: room.collection('hands'),
-  };
+  const room = db.collection('rooms').doc(roomId);
+  return {
+    room,
+    lobby: room.collection('meta').doc('lobby'),
+    state: room.collection('meta').doc('state'),
+    actions: room.collection('actions'),
+    events: room.collection('events'),
+    hands: room.collection('hands'),
+  };
 }
 
 /* ===================== Host 权威状态 ===================== */
 let H = null;
 
 async function hostInit(roomId, name){
-  isHost = true; ROOM_ID = roomId; me.name = name;
-  const user = await ensureAuth(); uid = user.uid; me.uid = uid;
+  isHost = true; ROOM_ID = roomId; me.name = name;
+  const user = await ensureAuth(); uid = user.uid; me.uid = uid;
 
-  const { lobby } = roomRefs(ROOM_ID);
+  const { lobby } = roomRefs(ROOM_ID);
 
-  H = {
-    settings:{ seats:4, startHand:5 },
-    players: new Array(4).fill(null),
-    roundNo:0, target:null, turn:0,
-    pot:[], awaitingReveal:false, challengerId:null,
-    revealing:false   // 互斥锁
-  };
-  H.players[0] = { uid, name, alive:true, rolls:[], rollMap:{}, hand:[] };
+  H = {
+    settings:{ seats:4, startHand:5 },
+    players: new Array(4).fill(null),
+    roundNo:0, target:null, turn:0,
+    pot:[], awaitingReveal:false, challengerId:null,
+    revealing:false
+  };
+  H.players[0] = { uid, name, alive:true, rolls:[], rollMap:{}, hand:[] };
 
-  await lobby.set({
-    hostUid: uid,
-    settings: H.settings,
-    seats: H.players.map(p=> p ? {uid:p.uid, name:p.name, alive:p.alive, rolls:p.rolls} : null),
-    canStart: false,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-  });
+  await lobby.set({
+    hostUid: uid,
+    settings: H.settings,
+    seats: H.players.map(p=> p ? {uid:p.uid, name:p.name, alive:p.alive, rolls:p.rolls} : null),
+    canStart: false,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
 
-  saveSession(ROOM_ID, name);
-  attachCommonListeners();
-  attachHostActionListener();
-  enterLobbyUI();
-  document.getElementById("roomShow").textContent = ROOM_ID;
-  document.getElementById("roleShow").textContent = t('roleHost');
-  document.getElementById("hostPanel").classList.remove('hidden');
-  document.getElementById("btnResetAll").classList.remove('hidden'); // Host 专属
+  saveSession(ROOM_ID, name);
+  attachCommonListeners();
+  attachHostActionListener();
+  enterLobbyUI();
+  document.getElementById("roomShow").textContent = ROOM_ID;
+  document.getElementById("roleShow").textContent = t('roleHost');
+  document.getElementById("hostPanel").classList.remove('hidden');
+  document.getElementById("btnResetAll").classList.remove('hidden');
+  document.getElementById("btnLeaveRoom").classList.add('hidden');
 }
 
 async function guestJoin(roomId, name){
-  isHost = false; ROOM_ID = roomId; me.name = name;
-  const user = await ensureAuth(); uid = user.uid; me.uid = uid;
+  isHost = false; ROOM_ID = roomId; me.name = name;
+  const user = await ensureAuth(); uid = user.uid; me.uid = uid;
 
-  saveSession(ROOM_ID, name);
-  attachCommonListeners();
-  enterLobbyUI();
-  document.getElementById("roomShow").textContent = ROOM_ID;
-  document.getElementById("roleShow").textContent = t('roleGuest');
-  document.getElementById("hostPanel").classList.add('hidden');
-  document.getElementById("btnResetAll").classList.add('hidden'); // Guest 不显示
+  saveSession(ROOM_ID, name);
+  attachCommonListeners();
+  enterLobbyUI();
+  document.getElementById("roomShow").textContent = ROOM_ID;
+  document.getElementById("roleShow").textContent = t('roleGuest');
+  document.getElementById("hostPanel").classList.add('hidden');
+  document.getElementById("btnResetAll").classList.add('hidden');
+  document.getElementById("btnLeaveRoom").classList.remove('hidden');
 }
 
 /* ===================== Host 写入 ===================== */
 async function writeLobby(){
-  const { lobby } = roomRefs(ROOM_ID);
-  const canStart = H.players.filter(p=>p && p.alive).length >= 2;
-  await lobby.set({
-    hostUid: uid,
-    settings: H.settings,
-    seats: H.players.map(p=> p ? {uid:p.uid, name:p.name, alive:p.alive, rolls:p.rolls} : null),
-    canStart
-  }, { merge:true });
+  const { lobby } = roomRefs(ROOM_ID);
+  const canStart = H.players.filter(p=>p && p.alive).length >= 2;
+  await lobby.set({
+    hostUid: uid,
+    settings: H.settings,
+    seats: H.players.map(p=> p ? {uid:p.uid, name:p.name, alive:p.alive, rolls:p.rolls} : null),
+    canStart
+  }, { merge:true });
 }
 
 async function writeState(withWinner=false){
-  const { state } = roomRefs(ROOM_ID);
-  const winner = withWinner ? (H.players.find(p=>p && p.alive) || null) : null;
-  const data = {
-    roundNo: H.roundNo,
-    target: H.target,
-    turn: H.turn,
-    awaitingReveal: H.awaitingReveal,
-    lastClaim: H.pot.length? { by:H.pot[H.pot.length-1].by, count:H.pot[H.pot.length-1].cards.length } : null,
-    pot: H.pot.map(b=>({ by: b.by, count: b.cards.length })),
-    players: H.players.map(p=> p ? {uid:p.uid,name:p.name,alive:p.alive, handCount:p.hand.length, rolls:p.rolls} : null),
-    winner: winner ? {uid:winner.uid, name:winner.name} : null,
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-  };
-  await state.set(data);
+  const { state } = roomRefs(ROOM_ID);
+  const winner = withWinner ? (H.players.find(p=>p && p.alive) || null) : null;
+  const data = {
+    roundNo: H.roundNo,
+    target: H.target,
+    turn: H.turn,
+    awaitingReveal: H.awaitingReveal,
+    lastClaim: H.pot.length? { by:H.pot[H.pot.length-1].by, count:H.pot[H.pot.length-1].cards.length } : null,
+    pot: H.pot.map(b=>({ by: b.by, count: b.cards.length })),
+    players: H.players.map(p=> p ? {uid:p.uid,name:p.name,alive:p.alive, handCount:p.hand.length, rolls:p.rolls} : null),
+    winner: winner ? {uid:winner.uid, name:winner.name} : null,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  };
+  await state.set(data);
 }
 
 async function sendHands(){
-  const { hands } = roomRefs(ROOM_ID);
-  for (const p of H.players){
-    if (!p) continue;
-    await hands.doc(p.uid).set({ ownerUid:p.uid, hand:p.hand });
-  }
+  const { hands } = roomRefs(ROOM_ID);
+  for (const p of H.players){
+    if (!p) continue;
+    await hands.doc(p.uid).set({ ownerUid:p.uid, hand:p.hand });
+  }
 }
 
 async function emitEvent(type, payload){
-  const { events } = roomRefs(ROOM_ID);
-  await events.add({ type, payload, ts: firebase.firestore.FieldValue.serverTimestamp() });
+  const { events } = roomRefs(ROOM_ID);
+  await events.add({ type, payload, ts: firebase.firestore.FieldValue.serverTimestamp() });
 }
 
 /* ===================== Host 游戏操作 ===================== */
 async function hostApplySettings(){
-  const newSeats = Math.max(2, Math.min(4, Number(document.getElementById("seatMax").value||4)));
-  const startHand = Number(document.getElementById("startHand").value||5);
-  const oldSeats = H.players.length;
-  let arr = new Array(newSeats).fill(null);
-  for (let i=0; i<Math.min(oldSeats, newSeats); i++) arr[i] = H.players[i] || null;
-  if (!arr[0] || arr[0].uid !== uid){
-    const idx = (H.players||[]).findIndex(p=>p && p.uid===uid);
-    const hostObj = idx>=0 ? H.players[idx] : { uid, name: me.name, alive:true, rolls:[], rollMap:{}, hand:[] };
-    if (arr[0] && arr[0].uid !== uid){
-      const firstEmpty = arr.findIndex(x=>x===null);
-      if (firstEmpty >= 1) arr[firstEmpty] = arr[0];
-    }
-    arr[0] = hostObj;
-  }
-  H.players = arr;
-  H.settings = { seats: newSeats, startHand };
-  await writeLobby();
+  const newSeats = Math.max(2, Math.min(4, Number(document.getElementById("seatMax").value||4)));
+  const startHand = Number(document.getElementById("startHand").value||5);
+  const oldSeats = H.players.length;
+  let arr = new Array(newSeats).fill(null);
+  for (let i=0; i<Math.min(oldSeats, newSeats); i++) arr[i] = H.players[i] || null;
+  if (!arr[0] || arr[0].uid !== uid){
+    const idx = (H.players||[]).findIndex(p=>p && p.uid===uid);
+    const hostObj = idx>=0 ? H.players[idx] : { uid, name: me.name, alive:true, rolls:[], rollMap:{}, hand:[] };
+    if (arr[0] && arr[0].uid !== uid){
+      const firstEmpty = arr.findIndex(x=>x===null);
+      if (firstEmpty >= 1) arr[firstEmpty] = arr[0];
+    }
+    arr[0] = hostObj;
+  }
+  H.players = arr;
+  H.settings = { seats: newSeats, startHand };
+  await writeLobby();
 }
 
 async function hostStart(){
-  const seated = H.players.filter(p=>p && p.alive);
-  if (seated.length < 2){ toast(t('need2p')); return; }
-  const deck = makeCustomDeck();
-  if (seated.length * H.settings.startHand > deck.length){ toast(t('notEnough')); return; }
+  const seated = H.players.filter(p=>p && p.alive);
+  if (seated.length < 2){ toast(t('need2p')); return; }
+  const deck = makeCustomDeck();
+  if (seated.length * H.settings.startHand > deck.length){ toast(t('notEnough')); return; }
 
-  for (const p of H.players){
-    if (p && p.alive){ p.hand = deck.splice(0, H.settings.startHand); p.sel = new Set(); }
-    else if (p){ p.hand = []; }
-  }
-  H.roundNo = (H.roundNo||0) + 1;
-  H.target = TARGETS[rnd(TARGETS.length)];
-  H.turn = H.players.findIndex(p=>p && p.alive);
-  H.pot = []; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
+  for (const p of H.players){
+    if (p && p.alive){ p.hand = deck.splice(0, H.settings.startHand); p.sel = new Set(); }
+    else if (p){ p.hand = []; }
+  }
+  H.roundNo = (H.roundNo||0) + 1;
+  H.target = TARGETS[rnd(TARGETS.length)];
+  H.turn = H.players.findIndex(p=>p && p.alive);
+  H.pot = []; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
 
-  await sendHands();
-  await writeState();
-  showSmoke();
+  await sendHands();
+  await writeState();
+  showSmoke();
 }
 
 async function hostRestart(){
-  H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
-  H.players.forEach(p=>{ if(p){ p.alive=true; p.rolls=[]; p.rollMap={}; p.hand=[]; }});
-  await sendHands();
-  await writeLobby();
-  await writeState();
+  H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
+  H.players.forEach(p=>{ if(p){ p.alive=true; p.rolls=[]; p.rollMap={}; p.hand=[]; }});
+  await sendHands();
+  await writeLobby();
+  await writeState();
 }
 
-/* 再来一局（不回大厅，直接新一轮） */
+/* 游戏中“新一局” */
 async function hostNewGame(){
-  H.players = H.players.map(p => p ? { ...p, alive:true, rolls:[], rollMap:{}, hand:[] } : p);
+  H.players = H.players.map(p => p ? { ...p, alive:true, rolls:[], rollMap:{}, hand:[] } : p);
 
-  const seated = H.players.filter(p=>p);
-  const deck = makeCustomDeck();
-  if (seated.length * H.settings.startHand > deck.length) {
-    H.settings.startHand = Math.max(1, Math.floor(deck.length / seated.length));
-  }
-  for (const p of H.players){ if (p) p.hand = deck.splice(0, H.settings.startHand); }
+  const seated = H.players.filter(p=>p);
+  const deck = makeCustomDeck();
+  if (seated.length * H.settings.startHand > deck.length) {
+    H.settings.startHand = Math.max(1, Math.floor(deck.length / seated.length));
+  }
+  for (const p of H.players){ if (p) p.hand = deck.splice(0, H.settings.startHand); }
 
-  H.roundNo = 1;
-  H.target  = TARGETS[rnd(TARGETS.length)];
-  H.turn    = H.players.findIndex(p=>p && p.alive);
-  H.pot     = [];
-  H.awaitingReveal = false;
-  H.challengerId   = null;
-  H.revealing      = false;
+  H.roundNo = 1;
+  H.target  = TARGETS[rnd(TARGETS.length)];
+  H.turn    = H.players.findIndex(p=>p && p.alive);
+  H.pot     = [];
+  H.awaitingReveal = false;
+  H.challengerId   = null;
+  H.revealing      = false;
 
-  await sendHands(); await writeLobby(); await writeState();
-  showSmoke();
+  await sendHands(); await writeLobby(); await writeState();
+  showSmoke();
 }
 
-/* 退座（仅未开局时允许；Host 位不可退） */
-async function hostLeaveSeatAction(_uid, seatIdx){
-  if ((H.roundNo||0) > 0) return;
-  const hostUid = H.players[0]?.uid;
-  let idx = typeof seatIdx === 'number' ? seatIdx : H.players.findIndex(p=>p && p.uid===_uid);
-  if (idx < 0) return;
-  if (H.players[idx] && H.players[idx].uid === hostUid) return;
-  H.players[idx] = null;
-  await writeLobby();
+/* 玩家离开（任何时刻，移除座位；如果是当前手则推进回合） */
+async function hostRemovePlayer(guestUid){
+  const idx = H.players.findIndex(p=>p && p.uid===guestUid);
+  if (idx < 0) return;
+  const wasTurn = (H.turn === idx);
+  H.players[idx] = null;
+  if (wasTurn) H.turn = nextAliveFrom(H, idx);
+  // 如果只剩 1 人，宣告胜利
+  const alive = H.players.filter(p=>p && p.alive);
+  if (alive.length <= 1){
+    await writeState(true);
+  }else{
+    await writeLobby();
+    await writeState();
+  }
 }
 
 async function hostTakeSeat(seat, _uid, name){
-  if (seat<0 || seat>=H.players.length) return;
-  if (H.players[seat]) return;
-  if (H.players.findIndex(p=>p && p.uid===_uid)>=0) return;
-  H.players[seat] = { uid:_uid, name, alive:true, rolls:[], rollMap:{}, hand:[] };
-  await writeLobby();
+  if (seat<0 || seat>=H.players.length) return;
+  if (H.players[seat]) return;
+  if (H.players.findIndex(p=>p && p.uid===_uid)>=0) return;
+  H.players[seat] = { uid:_uid, name, alive:true, rolls:[], rollMap:{}, hand:[] };
+  await writeLobby();
 }
 
 async function hostPlay(_uid, indices){
-  const seat = H.players.findIndex(p=>p && p.uid===_uid);
-  if (seat !== H.turn) return;
-  const p = H.players[seat]; if (!p || !p.alive) return;
-  if (!Array.isArray(indices) || indices.length===0) return;
-  const sorted = [...indices].sort((a,b)=>b-a);
-  const cards=[]; for (const i of sorted){ if (i<0 || i>=p.hand.length) return; cards.push(p.hand.splice(i,1)[0]); }
-  H.pot.push({by:p.uid, cards, declared:H.target});
-  H.awaitingReveal=false; H.challengerId=null;
-  H.turn = nextAliveFrom(H, H.turn);
+  const seat = H.players.findIndex(p=>p && p.uid===_uid);
+  if (seat !== H.turn) return;
+  const p = H.players[seat]; if (!p || !p.alive) return;
+  if (!Array.isArray(indices) || indices.length===0) return;
+  const sorted = [...indices].sort((a,b)=>b-a);
+  const cards=[]; for (const i of sorted){ if (i<0 || i>=p.hand.length) return; cards.push(p.hand.splice(i,1)[0]); }
+  H.pot.push({by:p.uid, cards, declared:H.target});
+  H.awaitingReveal=false; H.challengerId=null;
+  H.turn = nextAliveFrom(H, H.turn);
 
-  await handsSetOne(p.uid, p.hand);
-  await writeState();
+  await handsSetOne(p.uid, p.hand);
+  await writeState();
 }
 async function handsSetOne(uidX, hand){ const { hands } = roomRefs(ROOM_ID); await hands.doc(uidX).set({ ownerUid:uidX, hand }); }
 
 async function hostLiar(_uid){
-  H.challengerId = _uid;
-  H.awaitingReveal = true;
-  H.revealing = false;   // 进入质疑时确保未锁
-  lastReveal = null;
-  await writeState();
+  H.challengerId = _uid;
+  H.awaitingReveal = true;
+  H.revealing = false;
+  lastReveal = null;
+  await writeState();
 }
 
 const DICE_TURNS = 14, DICE_BASE = 70, DICE_INC = 35, DICE_HOLD = 1000;
 function diceAnimMs(){ return (DICE_TURNS+1)*DICE_BASE + (DICE_TURNS*(DICE_TURNS+1)/2)*DICE_INC + DICE_HOLD; }
 
-/* 防重复触发的翻牌流程 */
 async function hostReveal(){
-  if (!H.awaitingReveal || H.pot.length===0 || H.revealing) return;
-  H.revealing = true;
+  if (!H.awaitingReveal || H.pot.length===0 || H.revealing) return;
+  H.revealing = true;
 
-  const last = H.pot[H.pot.length-1];
-  lastReveal = last.cards.map(c=>({...c}));
-  await emitEvent("REVEAL_VIEW", { cards:last.cards.map(c=>({...c})) });
+  const last = H.pot[H.pot.length-1];
+  lastReveal = last.cards.map(c=>({...c}));
+  await emitEvent("REVEAL_VIEW", { cards:last.cards.map(c=>({...c})) });
 
-  setTimeout(async ()=>{
-    const truthful = last.cards.every(c=>isMatch(c, H.target));
-    const loserId  = truthful ? H.challengerId : last.by;
-    const winnerId = truthful ? last.by : H.challengerId;
-    const loserSeat  = H.players.findIndex(p=>p && p.uid===loserId);
-    const winnerSeat = H.players.findIndex(p=>p && p.uid===winnerId);
-    if (loserSeat<0) { H.revealing=false; return; }
+  setTimeout(async ()=>{
+    const truthful = last.cards.every(c=>isMatch(c, H.target));
+    const loserId  = truthful ? H.challengerId : last.by;
+    const winnerId = truthful ? last.by : H.challengerId;
+    const loserSeat  = H.players.findIndex(p=>p && p.uid===loserId);
+    const winnerSeat = H.players.findIndex(p=>p && p.uid===winnerId);
+    if (loserSeat<0) { H.revealing=false; return; }
 
-    const P = H.players[loserSeat];
-    const roll = 1 + rnd(6);
+    const P = H.players[loserSeat];
+    const roll = 1 + rnd(6);
 
-    await emitEvent("DICE_ANIM", { who:P.name, value:roll });
+    await emitEvent("DICE_ANIM", { who:P.name, value:roll });
 
-    setTimeout(async ()=>{
-      P.rolls.push(roll); P.rollMap[roll]=(P.rollMap[roll]||0)+1;
-      const dieNow = (roll===6) || (P.rollMap[roll]>=2);
-      if (dieNow){ P.alive=false; P.hand=[]; await handsSetOne(P.uid, P.hand); }
+    setTimeout(async ()=>{
+      P.rolls.push(roll); P.rollMap[roll]=(P.rollMap[roll]||0)+1;
+      const dieNow = (roll===6) || (P.rollMap[roll]>=2);
+      if (dieNow){ P.alive=false; P.hand=[]; await handsSetOne(P.uid, P.hand); }
 
-      await emitEvent("DICE_RESULT", { who:P.name, uid:P.uid, value:roll, died:dieNow });
+      await emitEvent("DICE_RESULT", { who:P.name, uid:P.uid, value:roll, died:dieNow });
 
-      const startIndex = (winnerSeat>=0 && H.players[winnerSeat]?.alive) ? winnerSeat : nextAliveFrom(H, loserSeat);
-      setTimeout(async ()=>{
-        await redealFrom(startIndex);
-        H.revealing = false;
-      }, 1200);
-    }, diceAnimMs());
-  }, 3000);
+      const startIndex = (winnerSeat>=0 && H.players[winnerSeat]?.alive) ? winnerSeat : nextAliveFrom(H, loserSeat);
+      setTimeout(async ()=>{
+        await redealFrom(startIndex);
+        H.revealing = false;
+      }, 1200);
+    }, diceAnimMs());
+  }, 3000);
 }
 
 async function redealFrom(startIndex){
-  H.awaitingReveal = false;
-  H.revealing = false;
-  const alive = H.players.filter(p=>p && p.alive);
-  if (alive.length<=1){ await writeState(true); return; }
+  H.awaitingReveal = false;
+  H.revealing = false;
+  const alive = H.players.filter(p=>p && p.alive);
+  if (alive.length<=1){ await writeState(true); return; }
 
-  const deck = makeCustomDeck();
-  const need = alive.length * H.settings.startHand;
-  if (need > deck.length){
-    H.settings.startHand = Math.max(1, Math.floor(deck.length / alive.length));
-  }
-  for (const p of H.players){
-    if (p && p.alive) p.hand = deck.splice(0,H.settings.startHand);
-    else if (p) p.hand=[];
-  }
-  H.pot=[]; H.target = TARGETS[rnd(TARGETS.length)];
-  H.roundNo = (H.roundNo||0)+1;
-  H.turn = startIndex;
-  H.awaitingReveal=false; H.challengerId=null;
-  lastReveal = null; lastTurnUid = null;
+  const deck = makeCustomDeck();
+  const need = alive.length * H.settings.startHand;
+  if (need > deck.length){
+    H.settings.startHand = Math.max(1, Math.floor(deck.length / alive.length));
+  }
+  for (const p of H.players){
+    if (p && p.alive) p.hand = deck.splice(0,H.settings.startHand);
+    else if (p) p.hand=[];
+  }
+  H.pot=[]; H.target = TARGETS[rnd(TARGETS.length)];
+  H.roundNo = (H.roundNo||0)+1;
+  H.turn = startIndex;
+  H.awaitingReveal=false; H.challengerId=null;
+  lastReveal = null; lastTurnUid = null;
 
-  await sendHands();
-  await writeLobby();
-  await writeState();
-  showSmoke();
+  await sendHands();
+  await writeLobby();
+  await writeState();
+  showSmoke();
 }
 
 async function hostBackToLobbyReset(){
-  H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
-  H.target=null; H.turn=0;
-  H.players.forEach(p=>{ if(p){ p.alive=true; p.rolls=[]; p.rollMap={}; p.hand=[]; }});
-  await sendHands();
-  await writeLobby();
-  await writeState();
-  enterLobbyUI();
+  H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
+  H.target=null; H.turn=0;
+  H.players.forEach(p=>{ if(p){ p.alive=true; p.rolls=[]; p.rollMap={}; p.hand=[]; }});
+  await sendHands();
+  await writeLobby();
+  await writeState();
+  enterLobbyUI();
 }
 
 /* ===================== Host 监听 actions ===================== */
 let unsubActions = null;
 function attachHostActionListener(){
-  const { actions } = roomRefs(ROOM_ID);
-  if (unsubActions) unsubActions();
+  const { actions } = roomRefs(ROOM_ID);
+  if (unsubActions) unsubActions();
 
-  unsubActions = actions.orderBy('ts').limitToLast(100).onSnapshot(async (qs)=>{
-    for (const ch of qs.docChanges()){
-      if (ch.type !== 'added') continue;
-      const doc = ch.doc; const a = doc.data()||{};
-      if (a.processed) continue;
+  unsubActions = actions.orderBy('ts').limitToLast(100).onSnapshot(async (qs)=>{
+    for (const ch of qs.docChanges()){
+      if (ch.type !== 'added') continue;
+      const doc = ch.doc; const a = doc.data()||{};
+      if (a.processed) continue;
 
-      try{
-        switch(a.type){
-          case 'TAKE_SEAT':    await hostTakeSeat(a.seat, a.uid, a.name); break;
-          case 'LEAVE_SEAT':   await hostLeaveSeatAction(a.uid, a.seat); break;
-          case 'PLAY':         await hostPlay(a.uid, a.indices); break;
-          case 'LIAR':         await hostLiar(a.uid); break;
-          case 'REVEAL':       await hostReveal(); break;
-          case 'HOST_APPLY':   if (a.uid===uid) await hostApplySettings(); break;
-          case 'HOST_START':   if (a.uid===uid) await hostStart(); break;
-          case 'HOST_RESTART': if (a.uid===uid) await hostRestart(); break;
-          case 'HOST_NEW_GAME':if (a.uid===uid) await hostNewGame(); break;
-          case 'BACK_TO_LOBBY': await hostBackToLobbyReset(); break;
-        }
-      } finally {
-        await doc.ref.update({ processed:true, processedBy: uid });
-      }
-    }
-  }, err=>{
-    console.error('Actions listener error:', err);
-    alert('Host 监听错误：' + (err && err.message ? err.message : err));
-  });
+      try{
+        switch(a.type){
+          case 'TAKE_SEAT':    await hostTakeSeat(a.seat, a.uid, a.name); break;
+          case 'LEAVE_SEAT':   await hostRemovePlayer(a.uid); break;     // 统一调用移除
+          case 'LEAVE_ROOM':   await hostRemovePlayer(a.uid); break;
+          case 'PLAY':         await hostPlay(a.uid, a.indices); break;
+          case 'LIAR':         await hostLiar(a.uid); break;
+          case 'REVEAL':       await hostReveal(); break;
+          case 'HOST_APPLY':   if (a.uid===uid) await hostApplySettings(); break;
+          case 'HOST_START':   if (a.uid===uid) await hostStart(); break;
+          case 'HOST_RESTART': if (a.uid===uid) await hostRestart(); break;
+          case 'HOST_NEW_GAME':if (a.uid===uid) await hostNewGame(); break;
+          case 'BACK_TO_LOBBY': await hostBackToLobbyReset(); break;
+        }
+      } finally {
+        await doc.ref.update({ processed:true, processedBy: uid });
+      }
+    }
+  }, err=>{
+    console.error('Actions listener error:', err);
+    alert('Host 监听错误：' + (err && err.message ? err.message : err));
+  });
 }
 
 /* ===================== 公用监听 ===================== */
@@ -504,247 +750,253 @@ let lastReveal=null, lastTurnUid=null;
 const processedEvents = new Set();
 
 function attachCommonListeners(){
-  const { lobby, state, events, hands } = roomRefs(ROOM_ID);
+  const { lobby, state, events, hands } = roomRefs(ROOM_ID);
 
-  if (unsubLobby) unsubLobby();
-  unsubLobby = lobby.onSnapshot((doc)=>{
-    if (!doc.exists) return;
-    L = doc.data();
+  if (unsubLobby) unsubLobby();
+  unsubLobby = lobby.onSnapshot((doc)=>{
+    if (!doc.exists) return;
+    L = doc.data();
 
-    // 根据 lobby 的 hostUid 实时判断我是不是 Host（控制UI: hostPanel / 刷新按钮）
-    const imHost = (L.hostUid === (auth.currentUser && auth.currentUser.uid));
-    isHost = imHost;
-    document.getElementById("hostPanel").classList.toggle("hidden", !isHost);
-    document.getElementById("btnResetAll").classList.toggle("hidden", !isHost);
-    const btnHostRestartInWin = document.getElementById('btnHostRestart');
-    if(btnHostRestartInWin) btnHostRestartInWin.classList.toggle('hidden', !isHost);
+    const imHost = (L.hostUid === (auth.currentUser && auth.currentUser.uid));
+    isHost = imHost;
+    document.getElementById("hostPanel").classList.toggle("hidden", !isHost);
+    document.getElementById("btnResetAll").classList.toggle("hidden", !isHost);
+    document.getElementById("btnLeaveRoom").classList.toggle("hidden", isHost);
 
-    renderLobbyLocal(L);
-    document.getElementById("roomShow").textContent = ROOM_ID;
-    document.getElementById("roleShow").textContent = isHost ? t('roleHost') : t('roleGuest');
-    const btn = document.getElementById("btnStart"); if (btn && isHost) btn.disabled = !L.canStart;
-  }, err=>{
-    console.error('Lobby listen error:', err);
-    alert('读取大厅失败：' + (err && err.message ? err.message : err));
-  });
+    renderLobbyLocal(L);
+    document.getElementById("roomShow").textContent = ROOM_ID;
+    document.getElementById("roleShow").textContent = isHost ? t('roleHost') : t('roleGuest');
+    const btn = document.getElementById("btnStart"); if (btn && isHost) btn.disabled = !L.canStart;
+    // 游戏内“新一局”按钮：只给 Host
+    document.getElementById('btnHostNewGame').classList.toggle('hidden', !isHost);
+  }, err=>{
+    console.error('Lobby listen error:', err);
+    alert('读取大厅失败：' + (err && err.message ? err.message : err));
+  });
 
-  if (unsubState) unsubState();
-  unsubState = state.onSnapshot((doc)=>{
-    if (!doc.exists) return;
-    S = doc.data();
-    renderAll();
-  }, err=>{
-    console.error('State listen error:', err);
-    alert('读取游戏状态失败：' + (err && err.message ? err.message : err));
-  });
+  if (unsubState) unsubState();
+  unsubState = state.onSnapshot((doc)=>{
+    if (!doc.exists) return;
+    S = doc.data();
+    renderAll();
+  }, err=>{
+    console.error('State listen error:', err);
+    alert('读取游戏状态失败：' + (err && err.message ? err.message : err));
+  });
 
-  if (unsubEvents) unsubEvents();
-  unsubEvents = events.orderBy('ts').limitToLast(50).onSnapshot((qs)=>{
-    qs.docChanges().forEach(ch=>{
-      if (ch.type !== 'added') return;
-      const id = ch.doc.id; if (processedEvents.has(id)) return;
-      processedEvents.add(id);
-      const e = ch.doc.data();
-      if (!e || !e.type) return;
-      switch(e.type){
-        case "REVEAL_VIEW":
-          lastReveal = e.payload?.cards||[];
-          toast(LANG==='zh' ? "正在翻开最近一次出牌…" : "Revealing last batch…");
-          renderAll();
-          break;
-        case "DICE_ANIM":
-          showDice(e.payload?.value||1, e.payload?.who||'');
-          break;
-        case "DICE_RESULT":
-          showRollBanner(e.payload?.uid, e.payload?.who, e.payload?.value, e.payload?.died);
-          break;
-      }
-    });
-  }, err=>{
-    console.error('Events listen error:', err);
-  });
+  if (unsubEvents) unsubEvents();
+  unsubEvents = events.orderBy('ts').limitToLast(50).onSnapshot((qs)=>{
+    qs.docChanges().forEach(ch=>{
+      if (ch.type !== 'added') return;
+      const id = ch.doc.id; if (processedEvents.has(id)) return;
+      processedEvents.add(id);
+      const e = ch.doc.data();
+      if (!e || !e.type) return;
+      switch(e.type){
+        case "REVEAL_VIEW":
+          lastReveal = e.payload?.cards||[];
+          toast(LANG==='zh' ? "正在翻开最近一次出牌…" : "Revealing last batch…");
+          renderAll();
+          break;
+        case "DICE_ANIM":
+          showDice(e.payload?.value||1, e.payload?.who||'');
+          break;
+        case "DICE_RESULT":
+          showRollBanner(e.payload?.uid, e.payload?.who, e.payload?.value, e.payload?.died);
+          break;
+      }
+    });
+  }, err=>{
+    console.error('Events listen error:', err);
+  });
 
-  if (unsubMyHand) unsubMyHand();
-  unsubMyHand = hands.doc(auth.currentUser.uid).onSnapshot((doc)=>{
-    if (!doc.exists) return;
-    const h = doc.data()?.hand || [];
-    const newHash = h.map(c=>c.r).join('|');
-    if (newHash !== myHandHash){
-      myHand = h; myHandHash = newHash;
-      selectedIndices.clear();
-      renderAll();
-    }
-  }, err=>{
-    console.error('Hand listen error:', err);
-  });
+  if (unsubMyHand) unsubMyHand();
+  unsubMyHand = hands.doc(auth.currentUser.uid).onSnapshot((doc)=>{
+    if (!doc.exists) return;
+    const h = doc.data()?.hand || [];
+    const newHash = h.map(c=>c.r).join('|');
+    if (newHash !== myHandHash){
+      myHand = h; myHandHash = newHash;
+      selectedIndices.clear();
+      renderAll();
+    }
+  }, err=>{
+    console.error('Hand listen error:', err);
+  });
 }
 
 /* ===================== 事件发送（确保登录 + 报错提示） ===================== */
 async function sendAction(data){
-  try{
-    await ensureAuth();
-    if (!uid) uid = auth.currentUser.uid;
-    const { actions } = roomRefs(ROOM_ID);
-    return await actions.add({
-      ...data,
-      uid, name: me.name,
-      ts: firebase.firestore.FieldValue.serverTimestamp(),
-      processed:false
-    });
-  }catch(e){
-    console.error('sendAction failed:', e);
-    alert('发送动作失败：' + (e && e.message ? e.message : e));
-    throw e;
-  }
+  try{
+    await ensureAuth();
+    if (!uid) uid = auth.currentUser.uid;
+    const { actions } = roomRefs(ROOM_ID);
+    return await actions.add({
+      ...data,
+      uid, name: me.name,
+      ts: firebase.firestore.FieldValue.serverTimestamp(),
+      processed:false
+    });
+  }catch(e){
+    console.error('sendAction failed:', e);
+    alert('发送动作失败：' + (e && e.message ? e.message : e));
+    throw e;
+  }
 }
 
 /* ===================== UI：渲染 ===================== */
 function enterLobbyUI(){ document.getElementById("connect").classList.add("hidden"); document.getElementById("game").classList.add("hidden"); document.getElementById("lobby").classList.remove("hidden"); }
 function enterGameUI(){ document.getElementById("lobby").classList.add("hidden"); document.getElementById("game").classList.remove("hidden"); }
 
-/* 大厅允许“退出座位” */
+/* 大厅允许“退出座位”（未强制要求时依旧保留） */
 function renderLobbyLocal(lobby){
-  applyStaticTexts();
-  const seats = document.getElementById("seats"); seats.innerHTML="";
-  const seatsN = lobby.settings.seats;
-  const hostUid = lobby.hostUid;
+  applyStaticTexts();
+  const seats = document.getElementById("seats"); seats.innerHTML="";
+  const seatsN = lobby.settings.seats;
+  const hostUid = lobby.hostUid;
 
-  for(let i=0;i<seatsN;i++){
-    const cell = document.createElement('div'); cell.className = "rounded-xl p-3 border border-[#334155] bg-[#0b142a]";
-    const occupant = lobby.seats[i];
-    if (occupant){
-      const canLeave = (occupant.uid === uid) && (occupant.uid !== hostUid);
-      cell.innerHTML = `<div class="font-semibold mb-1">${t('seatN', i+1)}</div>
-        <div class="opacity-90">${occupant.name}</div>
-        <div class="text-sm opacity-70 mt-1">${occupant.alive? t('seated') : t('eliminated')}</div>
-        ${canLeave ? `<button class="btn btn-danger w-full mt-2">${t('leaveSeat')}</button>` : ``}`;
-      if (canLeave){
-        const btn = cell.querySelector('button');
-        btn.onclick = async ()=>{ try{ await sendAction({ type:'LEAVE_SEAT', seat:i }); }catch(e){} };
-      }
-    } else {
-      cell.innerHTML = `<div class="font-semibold mb-2">${t('seatN', i+1)}</div>
-        <button class="btn btn-green w-full" id="join-${i}">${t('joinSeat')}</button>`;
-      const btn = cell.querySelector('button');
-      btn.onclick = async ()=>{
-        try{
-          await sendAction({ type:'TAKE_SEAT', seat:i });
-          toast(LANG==='zh' ? '已发送加入座位请求' : 'Seat request sent');
-        }catch(e){}
-      };
-    }
-    seats.appendChild(cell);
-  }
+  for(let i=0;i<seatsN;i++){
+    const cell = document.createElement('div'); cell.className = "rounded-xl p-3 border border-[#334155] bg-[#0b142a]";
+    const occupant = lobby.seats[i];
+    if (occupant){
+      const canLeave = (occupant.uid === (auth.currentUser && auth.currentUser.uid)) && (occupant.uid !== hostUid);
+      cell.innerHTML = `<div class="font-semibold mb-1">${t('seatN', i+1)}</div>
+        <div class="opacity-90">${occupant.name}</div>
+        <div class="text-sm opacity-70 mt-1">${occupant.alive? t('seated') : t('eliminated')}</div>
+        ${canLeave ? `<button class="btn btn-danger w-full mt-2">${t('leaveSeat')}</button>` : ``}`;
+      if (canLeave){
+        const btn = cell.querySelector('button');
+        btn.onclick = async ()=>{ try{ await sendAction({ type:'LEAVE_SEAT' }); }catch(e){} };
+      }
+    } else {
+      cell.innerHTML = `<div class="font-semibold mb-2">${t('seatN', i+1)}</div>
+        <button class="btn btn-green w-full" id="join-${i}">${t('joinSeat')}</button>`;
+      const btn = cell.querySelector('button');
+      btn.onclick = async ()=>{
+        try{
+          await sendAction({ type:'TAKE_SEAT', seat:i });
+          toast(LANG==='zh' ? '已发送加入座位请求' : 'Seat request sent');
+        }catch(e){}
+      };
+    }
+    seats.appendChild(cell);
+  }
 }
 
-/* 只显示“上家出”的翻牌；并确保出牌者没有 liar 选项 */
+/* 翻牌区只显示“上家出”的牌；并限制 liar / reveal 给下家 */
 function renderAll(){
-  if (!S) return;
-  if (!S.awaitingReveal) lastReveal = null;
+  if (!S) return;
+  if (!S.awaitingReveal) lastReveal = null;
 
-  const winnerWrap = document.getElementById("winnerWrap");
-  if (S.winner){
-    document.getElementById("winnerName").textContent = S.winner.name;
-    winnerWrap.classList.remove("hidden");
-    const ng = document.getElementById('btnNewGame');
-    const hr = document.getElementById('btnHostRestart');
-    if (ng) ng.classList.toggle('hidden', !isHost);
-    if (hr) hr.classList.toggle('hidden', !isHost);
-    launchConfetti();
-  } else {
-    winnerWrap.classList.add("hidden");
-  }
+  const winnerWrap = document.getElementById("winnerWrap");
+  if (S.winner){
+    document.getElementById("winnerName").textContent = S.winner.name;
+    winnerWrap.classList.remove("hidden");
+    const ng = document.getElementById('btnNewGame');
+    if (ng) ng.classList.toggle('hidden', !isHost);
+    launchConfetti();
+  } else {
+    winnerWrap.classList.add("hidden");
+  }
 
-  enterGameUI();
-  document.getElementById("roundNo").textContent = S.roundNo||1;
-  document.getElementById("targetRank").textContent = S.target||"-";
-  const currentSeat = S.turn;
-  const currentPlayer = S.players[currentSeat];
-  document.getElementById("currentPlayer").textContent = currentPlayer ? currentPlayer.name : "-";
+  enterGameUI();
+  document.getElementById("roundNo").textContent = S.roundNo||1;
+  document.getElementById("targetRank").textContent = S.target||"-";
+  const currentSeat = S.turn;
+  const currentPlayer = S.players[currentSeat];
+  document.getElementById("currentPlayer").textContent = currentPlayer ? currentPlayer.name : "-";
 
-  const row = document.getElementById("playersRow"); row.innerHTML="";
-  S.players.forEach((p,i)=>{
-    if (p===null) return;
-    const wrap = document.createElement('div');
-    wrap.className = "rounded-xl p-3 border " + (i===currentSeat?"border-sky-400/60":"border-[#334155] bg-[#0b142a]");
-    wrap.dataset.uid = p.uid || '';
-    if (!p.alive) wrap.classList.add("dead");
-    const rollsTxt = p.rolls?.length ? p.rolls.join(", ") : "—";
-    wrap.innerHTML = `
-      <div class="flex items-center justify-between">
-        <div class="font-semibold">${p.name}</div>
-        <div class="text-sm opacity-80">${t('handCount', p.handCount)}</div>
-      </div>
-      <div class="flex items-center gap-2 text-sm flex-wrap mt-1">
-        <span class="badge">${t('diceList', rollsTxt)}</span>
-        ${p.alive ? '' : `<span class="badge" style="border-color:#fb7185;color:#fb7185">${t('eliminated')}</span>`}
-        ${i===currentSeat && p.alive ? `<span class="badge" style="border-color:#818cf8;color:#a5b4fc">${t('playing')}</span>` : ''}
-      </div>
-      <div class="roll-banner-area"></div>
-    `;
-    row.appendChild(wrap);
-  });
+  const row = document.getElementById("playersRow"); row.innerHTML="";
+  S.players.forEach((p,i)=>{
+    if (p===null) return;
+    const wrap = document.createElement('div');
+    wrap.className = "rounded-xl p-3 border " + (i===currentSeat?"border-sky-400/60":"border-[#334155] bg-[#0b142a]");
+    wrap.dataset.uid = p.uid || '';
+    if (!p.alive) wrap.classList.add("dead");
+    const rollsTxt = p.rolls?.length ? p.rolls.join(", ") : "—";
+    wrap.innerHTML = `
+      <div class="flex items-center justify-between">
+        <div class="font-semibold">${p.name}</div>
+        <div class="text-sm opacity-80">${t('handCount', p.handCount)}</div>
+      </div>
+      <div class="flex items-center gap-2 text-sm flex-wrap mt-1">
+        <span class="badge">${t('diceList', rollsTxt)}</span>
+        ${p.alive ? '' : `<span class="badge" style="border-color:#fb7185;color:#fb7185">${t('eliminated')}</span>`}
+        ${i===currentSeat && p.alive ? `<span class="badge" style="border-color:#818cf8;color:#a5b4fc">${t('playing')}</span>` : ''}
+      </div>
+      <div class="roll-banner-area"></div>
+    `;
+    row.appendChild(wrap);
+  });
 
-  const potDiv = document.getElementById("pot"); potDiv.innerHTML="";
-  if (S.pot.length){
-    const revealMode = !!S.awaitingReveal;
-    const batches = revealMode ? [ S.pot[S.pot.length-1] ] : S.pot;
+  const potDiv = document.getElementById("pot"); potDiv.innerHTML="";
+  if (S.pot.length){
+    const revealMode = !!S.awaitingReveal;
+    const batches = revealMode ? [ S.pot[S.pot.length-1] ] : S.pot;
 
-    batches.forEach((batch, idx)=>{
-      const rowDiv = document.createElement('div'); rowDiv.className = "flex items-center gap-3 mb-2 flex-wrap";
-      const who = (S.players.find(x=>x && x.uid===batch.by)||{}).name || t('unknown');
-      rowDiv.innerHTML = `<span class="text-sm opacity-90 px-2 py-1 rounded bg-[#0b142a] border border-[#334155]">${t('claim', who, S.target, batch.count)}</span>`;
+    batches.forEach((batch, idx)=>{
+      const rowDiv = document.createElement('div'); rowDiv.className = "flex items-center gap-3 mb-2 flex-wrap";
+      const who = (S.players.find(x=>x && x.uid===batch.by)||{}).name || t('unknown');
+      rowDiv.innerHTML = `<span class="text-sm opacity-90 px-2 py-1 rounded bg-[#0b142a] border border-[#334155]">${t('claim', who, S.target, batch.count)}</span>`;
 
-      const cards = document.createElement('div'); cards.className="flex flex-wrap";
-      const isRevealBatch = revealMode && idx===batches.length-1 && lastReveal;
+      const cards = document.createElement('div'); cards.className="flex flex-wrap";
+      const isRevealBatch = revealMode && idx===batches.length-1 && lastReveal;
 
-      for(let k=0;k<batch.count;k++){
-        const holder=document.createElement('div'); holder.className="card";
-        const inner=document.createElement('div'); inner.className="inner";
-        if (isRevealBatch && lastReveal[k]){
-          const r = lastReveal[k].r;
-          inner.innerHTML = cardFrontHTML(r)+cardBackHTML();
-          if (r==="JOKER") holder.classList.add('joker');
-          holder.classList.add('face-back','revealable');
-        } else {
-          inner.innerHTML = cardFrontHTML('?')+cardBackHTML();
-          holder.classList.add('face-back');
-        }
-        holder.appendChild(inner);
-        cards.appendChild(holder);
-      }
-      rowDiv.appendChild(cards); potDiv.appendChild(rowDiv);
-    });
+      for(let k=0;k<batch.count;k++){
+        const holder=document.createElement('div'); holder.className="card";
+        const inner=document.createElement('div'); inner.className="inner";
+        if (isRevealBatch && lastReveal[k]){
+          const r = lastReveal[k].r;
+          inner.innerHTML = cardFrontHTML(r)+cardBackHTML();
+          if (r==="JOKER") holder.classList.add('joker');
+          holder.classList.add('face-back','revealable');
+        } else {
+          inner.innerHTML = cardFrontHTML('?')+cardBackHTML();
+          holder.classList.add('face-back');
+        }
+        holder.appendChild(inner);
+        cards.appendChild(holder);
+      }
+      rowDiv.appendChild(cards); potDiv.appendChild(rowDiv);
+    });
 
-    if (S.awaitingReveal && lastReveal){
-      requestAnimationFrame(()=>{
-        document.querySelectorAll('#pot .revealable.face-back').forEach(h=>{
-          h.classList.remove('face-back');
-        });
-      });
-    }
-  }
-  document.getElementById("lastClaim").textContent = S.lastClaim ? t('recent', (S.players.find(p=>p&&p.uid===S.lastClaim.by)||{}).name||t('unknown'), S.lastClaim.count) : "—";
-  if (S.lastClaim) potFlashOnce();
+    if (S.awaitingReveal && lastReveal){
+      requestAnimationFrame(()=>{
+        document.querySelectorAll('#pot .revealable.face-back').forEach(h=>{
+          h.classList.remove('face-back');
+        });
+      });
+    }
+  }
+  document.getElementById("lastClaim").textContent = S.lastClaim ? t('recent', (S.players.find(p=>p&&p.uid===S.lastClaim.by)||{}).name||t('unknown'), S.lastClaim.count) : "—";
+  if (S.lastClaim) potFlashOnce();
 
-  const yourTurnTag = document.getElementById("yourTurnTag");
-  const amIturn = (currentPlayer && currentPlayer.uid===auth.currentUser.uid && currentPlayer.alive);
+  const amIturn = (currentPlayer && currentPlayer.uid===auth.currentUser.uid && currentPlayer.alive);
+  const prevBy = S.lastClaim ? S.lastClaim.by : null;
 
-  // liar 规则：只能轮到你时、桌上有牌、没在翻牌、且你不是上一次出牌的人
-  const liarBtn = document.getElementById("btnLiar");
-  const canLiar = amIturn && !S.awaitingReveal && S.pot.length>0 && (!S.lastClaim || S.lastClaim.by !== auth.currentUser.uid);
-  liarBtn.disabled = !canLiar;
-  liarBtn.classList.toggle('hidden', !canLiar);
+  // liar：只给“下家”（当前轮到）且上家刚出过牌，且上家不是自己，且不在翻牌
+  const liarBtn = document.getElementById("btnLiar");
+  const canLiar = amIturn && !S.awaitingReveal && S.pot.length>0 && prevBy && prevBy!==auth.currentUser.uid;
+  liarBtn.disabled = !canLiar;
+  liarBtn.classList.toggle('hidden', !canLiar);
 
-  document.getElementById("btnReveal").classList.toggle("hidden", !S.awaitingReveal);
-  document.getElementById("btnPlay").disabled = S.awaitingReveal || !amIturn || (myHand.length===0);
-  yourTurnTag.classList.toggle("hidden", !amIturn);
+  // reveal：进入质疑后，只允许“下家/质疑者”（当前轮到）操作
+  const revealBtn = document.getElementById("btnReveal");
+  const canReveal = S.awaitingReveal && amIturn;
+  revealBtn.classList.toggle("hidden", !canReveal);
+  revealBtn.disabled = !canReveal;
 
-  const nowTurnUid = currentPlayer ? currentPlayer.uid : null;
-  if (nowTurnUid === auth.currentUser.uid && lastTurnUid !== auth.currentUser.uid){ toast(t('toastTurn')); }
-  lastTurnUid = nowTurnUid;
+  // 出牌按钮：依旧只有“当前轮到且有手牌且不在翻牌”才可出
+  const playBtn = document.getElementById("btnPlay");
+  playBtn.disabled = S.awaitingReveal || !amIturn || (myHand.length===0);
 
-  renderHandOnly();
+  document.getElementById("yourTurnTag").classList.toggle("hidden", !amIturn);
+
+  const nowTurnUid = currentPlayer ? currentPlayer.uid : null;
+  if (nowTurnUid === (auth.currentUser && auth.currentUser.uid) && lastTurnUid !== (auth.currentUser && auth.currentUser.uid)){ toast(t('toastTurn')); }
+  lastTurnUid = nowTurnUid;
+
+  renderHandOnly();
 }
 
 function glyphFor(r){ switch(r){ case 'A': return '✪'; case 'K': return '♚'; case 'Q': return '👑'; case 'JOKER': return '🃏'; default: return ''; } }
@@ -752,124 +1004,146 @@ function cardFrontHTML(r){ return `<div class="front">${r!=='?'?`<span class="ra
 function cardBackHTML(){ return `<div class="back">🂠</div>`; }
 
 function diceSVG(n){
-  const spots = {
-    1:[[50,50]], 2:[[25,25],[75,75]], 3:[[25,25],[50,50],[75,75]],
-    4:[[25,25],[25,75],[75,25],[75,75]],
-    5:[[25,25],[25,75],[50,50],[75,25],[75,75]],
-    6:[[25,25],[25,50],[25,75],[75,25],[75,50],[75,75]]
-  }[n]||[[50,50]];
-  return `<svg viewBox="0 0 100 100" width="64" height="64" xmlns="http://www.w3.org/2000/svg">
-    <rect x="6" y="6" width="88" height="88" rx="16" fill="#0b1224" stroke="#93c5fd" stroke-opacity=".55"/>
-    ${spots.map(([x,y])=>`<circle cx="${x}" cy="${y}" r="6" fill="#e5ecff"/>`).join('')}
-  </svg>`;
+  const spots = {
+    1:[[50,50]], 2:[[25,25],[75,75]], 3:[[25,25],[50,50],[75,75]],
+    4:[[25,25],[25,75],[75,25],[75,75]],
+    5:[[25,25],[25,75],[50,50],[75,25],[75,75]],
+    6:[[25,25],[25,50],[25,75],[75,25],[75,50],[75,75]]
+  }[n]||[[50,50]];
+  return `<svg viewBox="0 0 100 100" width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+    <rect x="6" y="6" width="88" height="88" rx="16" fill="#0b1224" stroke="#93c5fd" stroke-opacity=".55"/>
+    ${spots.map(([x,y])=>`<circle cx="${x}" cy="${y}" r="6" fill="#e5ecff"/>`).join('')}
+  </svg>`;
 }
 function showDice(finalValue, who){
-  const layer = document.getElementById('diceLayer');
-  const box = document.getElementById('diceBox');
-  layer.classList.remove('hidden');
-  box.classList.add('spin');
+  const layer = document.getElementById('diceLayer');
+  const box = document.getElementById('diceBox');
+  layer.classList.remove('hidden');
+  box.classList.add('spin');
 
-  const rolls = [];
-  for (let i=0;i<DICE_TURNS;i++) rolls.push(1 + Math.floor(Math.random()*6));
-  rolls.push(finalValue);
+  const rolls = [];
+  for (let i=0;i<DICE_TURNS;i++) rolls.push(1 + Math.floor(Math.random()*6));
+  rolls.push(finalValue);
 
-  let delay = 0;
-  rolls.forEach((val, i) => {
-    delay += DICE_BASE + i * DICE_INC;
-    setTimeout(()=>{
-      box.innerHTML = diceSVG(val) + (who ? `<div style="margin-top:8px; font-size:14px; opacity:.9">${who}</div>` : '');
-      if (i === rolls.length - 1) {
-        box.classList.remove('spin');
-        setTimeout(()=> layer.classList.add('hidden'), DICE_HOLD);
-      }
-    }, delay);
-  });
+  let delay = 0;
+  rolls.forEach((val, i) => {
+    delay += DICE_BASE + i * DICE_INC;
+    setTimeout(()=>{
+      box.innerHTML = diceSVG(val) + (who ? `<div style="margin-top:8px; font-size:14px; opacity:.9">${who}</div>` : '');
+      if (i === rolls.length - 1) {
+        box.classList.remove('spin');
+        setTimeout(()=> layer.classList.add('hidden'), DICE_HOLD);
+      }
+    }, delay);
+  });
 }
 function showSmoke(){
-  const layer = document.getElementById('smokeLayer');
-  layer.innerHTML = '';
-  layer.classList.remove('hidden');
-  const count = 36;
-  for (let i=0;i<count;i++){
-    const s = document.createElement('div');
-    s.className = 'puff';
-    const left = Math.random()*100;
-    const delay = Math.random()*0.8;
-    const dur = 2.2 + Math.random()*1.2;
-    const drift = (-30 + Math.random()*60) + 'vw';
-    s.style.left = `calc(${left}vw - 60px)`;
-    s.style.animationDuration = `${dur}s`;
-    s.style.animationDelay = `${delay}s`;
-    s.style.setProperty('--x', drift);
-    layer.appendChild(s);
-  }
-  setTimeout(()=>layer.classList.add('hidden'), 3000);
+  const layer = document.getElementById('smokeLayer');
+  layer.innerHTML = '';
+  layer.classList.remove('hidden');
+  const count = 36;
+  for (let i=0;i<count;i++){
+    const s = document.createElement('div');
+    s.className = 'puff';
+    const left = Math.random()*100;
+    const delay = Math.random()*0.8;
+    const dur = 2.2 + Math.random()*1.2;
+    const drift = (-30 + Math.random()*60) + 'vw';
+    s.style.left = `calc(${left}vw - 60px)`;
+    s.style.animationDuration = `${dur}s`;
+    s.style.animationDelay = `${delay}s`;
+    s.style.setProperty('--x', drift);
+    layer.appendChild(s);
+  }
+  setTimeout(()=>layer.classList.add('hidden'), 3000);
 }
 function launchConfetti(){
-  const colors = ['#f472b6','#60a5fa','#fbbf24','#34d399','#a78bfa','#f87171','#22d3ee'];
-  const n = 120;
-  for (let i=0;i<n;i++){
-    const c = document.createElement('div');
-    c.className = 'confetti';
-    const x = Math.random()*100;
-    const tx = (Math.random()*60 - 30) + 'vw';
-    const rot = (Math.random()*720 - 360) + 'deg';
-    const dur = 1.6 + Math.random()*1.2;
-    c.style.left = x+'vw';
-    c.style.background = `linear-gradient(180deg, ${colors[Math.floor(Math.random()*colors.length)]}, #fff0)`;
-    c.style.setProperty('--tx', tx);
-    c.style.setProperty('--rot', rot);
-    c.style.animationDuration = dur + 's';
-    document.body.appendChild(c);
-    setTimeout(()=>c.remove(), dur*1000);
-  }
+  const colors = ['#f472b6','#60a5fa','#fbbf24','#34d399','#a78bfa','#f87171','#22d3ee'];
+  const n = 120;
+  for (let i=0;i<n;i++){
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    const x = Math.random()*100;
+    const tx = (Math.random()*60 - 30) + 'vw';
+    const rot = (Math.random()*720 - 360) + 'deg';
+    const dur = 1.6 + Math.random()*1.2;
+    c.style.left = x+'vw';
+    c.style.background = `linear-gradient(180deg, ${colors[Math.floor(Math.random()*colors.length)]}, #fff0)`;
+    c.style.setProperty('--tx', tx);
+    c.style.setProperty('--rot', rot);
+    c.style.animationDuration = dur + 's';
+    document.body.appendChild(c);
+    setTimeout(()=>c.remove(), dur*1000);
+  }
 }
 function potFlashOnce(){ const felt = document.getElementById('felt'); felt.classList.add('pot-flash'); setTimeout(()=>felt.classList.remove('pot-flash'), 550); }
 
 function showRollBanner(playerUid, name, value, died){
-  const card = document.querySelector(`#playersRow [data-uid="${playerUid}"] .roll-banner-area`);
-  if (!card) return;
-  card.innerHTML = `<div class="roll-banner">${i18n[LANG].rollBanner(name, value, died)}</div>`;
-  setTimeout(()=>{ card.innerHTML=""; }, 1200);
+  const card = document.querySelector(`#playersRow [data-uid="${playerUid}"] .roll-banner-area`);
+  if (!card) return;
+  card.innerHTML = `<div class="roll-banner">${i18n[LANG].rollBanner(name, value, died)}</div>`;
+  setTimeout(()=>{ card.innerHTML=""; }, 1200);
 }
 
 /* ===================== 手牌渲染与选择 ===================== */
 const selectedIndices = new Set();
 function renderHandOnly(){
-  const handDiv = document.getElementById("hand"); if (!handDiv) return;
-  handDiv.innerHTML = "";
-  const sel = selectedIndices;
-  (myHand||[]).forEach((card, idx)=>{
-    const holder=document.createElement('div'); holder.className="card"+(card.r==="JOKER"?" joker":"")+(sel.has(idx)?" sel":"");
-    const inner=document.createElement('div'); inner.className="inner";
-    inner.innerHTML = cardFrontHTML(card.r)+cardBackHTML();
-    holder.appendChild(inner);
-    holder.onclick = ()=>{
-      if (sel.has(idx)) sel.delete(idx); else sel.add(idx);
-      document.getElementById("btnPlay").textContent = t('play', sel.size);
-      holder.classList.toggle("sel");
-    };
-    handDiv.appendChild(holder);
-  });
-  document.getElementById("btnPlay").textContent = t('play', sel.size);
+  const handDiv = document.getElementById("hand"); if (!handDiv) return;
+  handDiv.innerHTML = "";
+  const sel = selectedIndices;
+  (myHand||[]).forEach((card, idx)=>{
+    const holder=document.createElement('div'); holder.className="card"+(card.r==="JOKER"?" joker":"")+(sel.has(idx)?" sel":"");
+    const inner=document.createElement('div'); inner.className="inner";
+    inner.innerHTML = cardFrontHTML(card.r)+cardBackHTML();
+    holder.appendChild(inner);
+    holder.onclick = ()=>{
+      if (sel.has(idx)) sel.delete(idx); else sel.add(idx);
+      document.getElementById("btnPlay").textContent = t('play', sel.size);
+      holder.classList.toggle("sel");
+    };
+    handDiv.appendChild(holder);
+  });
+  document.getElementById("btnPlay").textContent = t('play', sel.size);
+}
+
+/* ===================== 离开房间（Guest） ===================== */
+function detachAll(){
+  unsubLobby && unsubLobby(); unsubLobby=null;
+  unsubState && unsubState(); unsubState=null;
+  unsubEvents && unsubEvents(); unsubEvents=null;
+  unsubMyHand && unsubMyHand(); unsubMyHand=null;
+}
+async function leaveRoomLocal(){
+  try { await sendAction({ type:'LEAVE_ROOM' }); } catch(e){}
+  detachAll();
+  localStorage.removeItem('lb_session');
+  ROOM_ID = null; isHost = false; myHand=[]; myHandHash=""; lastReveal=null; lastTurnUid=null;
+  document.getElementById("btnResetAll").classList.add('hidden');
+  document.getElementById("btnLeaveRoom").classList.add('hidden');
+  document.getElementById("hostPanel").classList.add('hidden');
+  document.getElementById("lobby").classList.add('hidden');
+  document.getElementById("game").classList.add('hidden');
+  document.getElementById("connect").classList.remove('hidden');
+  toast(LANG==='zh' ? '已退出房间' : 'Left the room');
 }
 
 /* ===================== 绑定事件 ===================== */
 document.getElementById("btnCreate").onclick = async ()=>{
-  const name = (document.getElementById("nick").value||"Player").trim();
-  const rid = Math.random().toString(36).slice(2,7).toUpperCase();
-  await hostInit(rid, name);
-  applyStaticTexts();
+  const name = (document.getElementById("nick").value||"Player").trim();
+  const rid = Math.random().toString(36).slice(2,7).toUpperCase();
+  await hostInit(rid, name);
+  applyStaticTexts();
 };
 document.getElementById("btnJoin").onclick = async ()=>{
-  const name = (document.getElementById("nick").value||"Player").trim();
-  const rid = (document.getElementById("roomInput").value||"").trim();
-  if (!rid) return alert(LANG==='zh' ? "请输入房间号" : "Enter room ID");
-  ROOM_ID = rid; await guestJoin(rid, name);
-  applyStaticTexts();
+  const name = (document.getElementById("nick").value||"Player").trim();
+  const rid = (document.getElementById("roomInput").value||"").trim();
+  if (!rid) return alert(LANG==='zh' ? "请输入房间号" : "Enter room ID");
+  ROOM_ID = rid; await guestJoin(rid, name);
+  applyStaticTexts();
 };
 
 document.getElementById("btnResetAll").onclick = ()=> location.reload();
+document.getElementById("btnLeaveRoom").onclick = leaveRoomLocal;
 
 async function applySettingsLocal(){ if (!isHost) return; await hostApplySettings(); }
 async function startLocal(){ if (!isHost) return; await hostStart(); }
@@ -879,66 +1153,69 @@ document.getElementById("btnApply").onclick = applySettingsLocal;
 document.getElementById("seatMax").addEventListener("change", applySettingsLocal);
 document.getElementById("startHand").addEventListener("change", applySettingsLocal);
 document.getElementById("btnStart").onclick = startLocal;
+document.getElementById("btnHostRestart").onclick = restartLocal;
+
+/* 游戏内 Host 新一局按钮 */
+document.getElementById("btnHostNewGame").onclick = async ()=>{
+  if (isHost) await hostNewGame(); else await sendAction({ type:'HOST_NEW_GAME' });
+};
 
 /* 胜利弹窗“再来一局” */
 document.getElementById("btnNewGame").onclick = async ()=>{
-  document.getElementById("winnerWrap").classList.add("hidden");
-  if (isHost) { await hostNewGame(); }
-  else { await sendAction({ type:'HOST_NEW_GAME' }); }
-};
-document.getElementById("btnHostRestart").onclick = async ()=>{
-  document.getElementById("winnerWrap").classList.add("hidden");
-  await sendAction({ type:'HOST_RESTART' });
+  document.getElementById("winnerWrap").classList.add("hidden");
+  if (isHost) { await hostNewGame(); }
+  else { await sendAction({ type:'HOST_NEW_GAME' }); }
 };
 
 document.getElementById("btnPlay").onclick = async ()=>{
-  if (selectedIndices.size===0) return toast(t('needOne'));
-  const handDiv = document.getElementById("hand");
-  const idxs = Array.from(selectedIndices).sort((a,b)=>a-b);
-  idxs.forEach(i=>{
-    const el = handDiv.children[i];
-    if (el) el.classList.add('burst');
-  });
-  document.getElementById("btnPlay").disabled = true;
-  setTimeout(async ()=>{
-    await sendAction({ type:'PLAY', indices: idxs });
-    selectedIndices.clear();
-    document.getElementById("btnPlay").textContent = t('play', 0);
-    document.getElementById("btnPlay").disabled = false;
-  }, 180);
+  if (selectedIndices.size===0) return toast(t('needOne'));
+  const handDiv = document.getElementById("hand");
+  const idxs = Array.from(selectedIndices).sort((a,b)=>a-b);
+  idxs.forEach(i=>{
+    const el = handDiv.children[i];
+    if (el) el.classList.add('burst');
+  });
+  document.getElementById("btnPlay").disabled = true;
+  setTimeout(async ()=>{
+    await sendAction({ type:'PLAY', indices: idxs });
+    selectedIndices.clear();
+    document.getElementById("btnPlay").textContent = t('play', 0);
+    document.getElementById("btnPlay").disabled = false;
+  }, 180);
 };
 
 document.getElementById("btnLiar").onclick = async ()=>{
-  const felt = document.getElementById("felt");
-  felt.classList.add('shake'); setTimeout(()=> felt.classList.remove('shake'), 420);
-  if (navigator.vibrate) { try{ navigator.vibrate([80, 40, 120]); }catch{} }
-  await sendAction({ type:'LIAR' });
+  const felt = document.getElementById("felt");
+  felt.classList.add('shake'); setTimeout(()=> felt.classList.remove('shake'), 420);
+  if (navigator.vibrate) { try{ navigator.vibrate([80, 40, 120]); }catch{} }
+  await sendAction({ type:'LIAR' });
 };
 
-/* 点“翻开判定”后按钮禁用 5 秒，避免连点 */
 document.getElementById("btnReveal").onclick = async ()=>{
-  const br = document.getElementById("btnReveal");
-  br.disabled = true;
-  try { await sendAction({ type:'REVEAL' }); }
-  finally { setTimeout(()=>{ br.disabled = false; }, 5000); }
+  const br = document.getElementById("btnReveal");
+  br.disabled = true;
+  try { await sendAction({ type:'REVEAL' }); }
+  finally { setTimeout(()=>{ br.disabled = false; }, 5000); }
 };
 
 document.getElementById("btnBackLobby").onclick = async ()=>{
-  document.getElementById("winnerWrap").classList.add("hidden");
-  await sendAction({ type:'BACK_TO_LOBBY' });
+  document.getElementById("winnerWrap").classList.add("hidden");
+  await sendAction({ type:'BACK_TO_LOBBY' });
 };
 
 document.getElementById("langSel").addEventListener("change", (e)=>{
-  LANG = e.target.value;
-  localStorage.setItem('lb_lang', LANG);
-  applyStaticTexts();
-  if (L) renderLobbyLocal(L);
-  if (S) renderAll();
+  LANG = e.target.value;
+  localStorage.setItem('lb_lang', LANG);
+  applyStaticTexts();
+  if (L) renderLobbyLocal(L);
+  if (S) renderAll();
 });
 
 // 页面加载：登录后尝试恢复会话；恢复失败就停在创建/加入页
 ensureAuth()
-  .then(()=> tryAutoResume())
-  .catch(()=>{})
-  .finally(()=> applyStaticTexts());
+  .then(()=> tryAutoResume())
+  .catch(()=>{})
+  .finally(()=> applyStaticTexts());
 </script>
+</body>
+</html>
