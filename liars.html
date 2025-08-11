@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
   <meta charset="utf-8" />
-  <title>Liar’s Bar – 主机/加入（美化 + 自带装饰图）</title>
+  <title>Liar’s Bar – Host/Join</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -35,7 +35,7 @@
     .ping::after{content:"";position:absolute;inset:-4px;border-radius:999px;border:2px solid var(--okay);opacity:.4;animation:ping 1.2s cubic-bezier(0,0,.2,1) infinite}
     @keyframes ping{0%{transform:scale(1);opacity:.4} 100%{transform:scale(1.5);opacity:0}}
 
-    /* 桌面：绿色呢绒台布效果（纯 CSS） */
+    /* 桌面绿色呢绒 */
     .felt{
       border:1px solid #335244; border-radius:14px; padding:16px;
       background:
@@ -44,16 +44,12 @@
         linear-gradient(180deg, var(--felt), var(--felt2));
       box-shadow: inset 0 0 40px rgba(0,0,0,.35), inset 0 2px 0 rgba(255,255,255,.05);
     }
+    .pot-flash{animation:potFlash .5s ease;}
+    @keyframes potFlash{0%{box-shadow:0 0 0 0 rgba(125,211,252,.0)} 60%{box-shadow:0 0 0 8px rgba(125,211,252,.15)} 100%{box-shadow:0 0 0 0 rgba(125,211,252,.0)}}
 
-    /* 纸牌（自带前后面 + 翻牌动画） */
-    .card{
-      position:relative; width:62px; height:86px; margin:4px; display:inline-block;
-      perspective: 700px;
-    }
-    .card .inner{
-      position:absolute; inset:0; border-radius:12px; transform-style:preserve-3d;
-      transition: transform .5s ease;
-    }
+    /* 纸牌 + 翻牌动画 */
+    .card{ position:relative; width:62px; height:86px; margin:4px; display:inline-block; perspective: 700px; }
+    .card .inner{ position:absolute; inset:0; border-radius:12px; transform-style:preserve-3d; transition: transform .6s ease; transform: rotateY(0deg); }
     .card .front, .card .back{
       position:absolute; inset:0; border-radius:12px; backface-visibility:hidden;
       display:flex; align-items:center; justify-content:center; gap:2px;
@@ -61,34 +57,50 @@
       border:1px solid #94a3b880;
       box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 6px 16px rgba(0,0,0,.35);
     }
-    .card .front{
-      background:linear-gradient(180deg,#10192d,#0a1224); color:#e2e8f0;
-    }
+    .card .front{ background:linear-gradient(180deg,#10192d,#0a1224); color:#e2e8f0; }
     .card .back{
       transform: rotateY(180deg);
       background:
         repeating-linear-gradient(45deg,#0d1226 0 6px,#0a1020 6px 12px),
         linear-gradient(180deg,#0c1429,#0a1122);
-      color:#99a;
-      text-shadow:0 1px 0 rgba(0,0,0,.4);
+      color:#99a; text-shadow:0 1px 0 rgba(0,0,0,.4);
     }
+    .face-back .inner{ transform: rotateY(180deg); }  /* 初始显示牌背 */
     .card.sel .inner{ outline:2px solid var(--accent); box-shadow:0 0 0 6px rgba(125,211,252,.13); transform: translateY(-4px) }
-    .flip .inner{ transform: rotateY(180deg); } /* 翻开动画（显示正面） */
-
     .rank{font-size:22px; line-height:1}
     .glyph{font-size:16px; opacity:.85}
     .joker .front{ background:repeating-linear-gradient(45deg,#0e1833 0 7px,#0b142a 7px 14px); }
 
-    /* 骰子动画 */
-    .dice-wrap{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:50}
-    .dice{
-      width:120px; height:120px; border-radius:20px;
-      background:linear-gradient(180deg,#1f2937,#111827);
-      border:1px solid #93c5fd55; box-shadow:0 20px 60px rgba(59,130,246,.35), inset 0 3px 0 rgba(255,255,255,.06);
-      display:grid; place-items:center; animation:pop .55s cubic-bezier(.2,.8,.2,1);
-    }
-    @keyframes pop{0%{transform:scale(.6);opacity:.0} 100%{transform:scale(1);opacity:1}}
+    /* 出牌小爆发动效 */
+    .burst{animation:burst .18s ease both;}
+    @keyframes burst{ 0%{transform:translateY(-2px) scale(1.02)} 100%{transform:translateY(-8px) scale(1.08)} }
 
+    /* 桌面拍桌抖动 */
+    .shake{animation:shake .38s cubic-bezier(.36,.07,.19,.97) both;}
+    @keyframes shake{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(3px)}30%,50%,70%{transform:translateX(-5px)}40%,60%{transform:translateX(5px)}}
+
+    /* 骰子层 + 弹出 + 旋转减速 */
+    .dice-wrap{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:80}
+    .dice{ width:120px; height:120px; border-radius:20px; background:linear-gradient(180deg,#1f2937,#111827);
+      border:1px solid #93c5fd55; box-shadow:0 20px 60px rgba(59,130,246,.35), inset 0 3px 0 rgba(255,255,255,.06);
+      display:grid; place-items:center; animation:pop .55s cubic-bezier(.2,.8,.2,1); }
+    @keyframes pop{0%{transform:scale(.6);opacity:.0} 100%{transform:scale(1);opacity:1}}
+    .dice.spin { animation: wobble 300ms ease-in-out infinite; }
+    @keyframes wobble{0%{transform:translateY(0) rotate(0)}25%{transform:translateY(-2px) rotate(3deg)}50%{transform:translateY(0) rotate(0)}75%{transform:translateY(-1px) rotate(-3deg)}100%{transform:translateY(0) rotate(0)}}
+
+    /* 开局烟雾 */
+    .smoke-layer{position:fixed; inset:0; pointer-events:none; z-index:40; overflow:hidden;}
+    .puff{position:absolute; bottom:-60px; width:120px; height:120px; border-radius:50%;
+      background:radial-gradient(circle at 30% 30%, rgba(255,255,255,.15), rgba(255,255,255,.03) 60%, transparent 70%);
+      filter: blur(2px); opacity:.0; animation:rise linear forwards;}
+    @keyframes rise{0%{transform:translate(var(--x,0),0) scale(.6);opacity:0}10%{opacity:.25}80%{opacity:.15}100%{transform:translate(var(--x,0),-120vh) scale(1.2);opacity:0}}
+
+    /* 胜利礼花 */
+    .confetti{position:fixed; top:-10px; width:8px; height:14px; opacity:.9; z-index:60; background:linear-gradient(180deg,#fff,#ddd); will-change:transform; animation:fall linear forwards;}
+    @keyframes fall{to{transform:translate3d(var(--tx),110vh,0) rotate(var(--rot))}}
+
+    /* 骰子结果 Banner（显示在玩家卡片下方） */
+    .roll-banner{margin-top:.5rem; font-size:.85rem; border:1px solid #334155; background:#0b142a; padding:.35rem .6rem; border-radius:.6rem}
   </style>
 </head>
 <body class="min-h-screen">
@@ -96,27 +108,41 @@
   <header class="glass-strong sticky top-0 z-20">
     <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <a href="index.html" class="btn flex items-center gap-2">
+        <a href="index.html" class="btn flex items-center gap-2" id="hdrBack">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9l5 4"/><path d="M6 9h12"/></svg>
-          返回主网页
+          <span id="hdrBackTxt">返回主网页</span>
         </a>
-        <h1 class="text-xl md:text-2xl font-bold neon-title">Liar’s Bar</h1>
+        <h1 class="text-xl md:text-2xl font-bold neon-title" id="hdrTitle">Liar’s Bar</h1>
       </div>
       <button id="btnResetAll" class="btn">刷新页面</button>
     </div>
   </header>
 
+  <!-- 烟雾层 -->
+  <div id="smokeLayer" class="smoke-layer hidden"></div>
+
   <main class="max-w-6xl mx-auto px-4 py-6">
     <!-- 连接/创建 -->
     <section id="connect" class="glass rounded-2xl p-5 md:p-7">
-      <h2 class="text-lg md:text-xl font-semibold mb-4">进入或创建房间</h2>
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-lg md:text-xl font-semibold" id="connTitle">进入或创建房间</h2>
+        <!-- 🌐 语言切换（加入前，每个玩家独立） -->
+        <div class="flex items-center gap-2">
+          <span class="opacity-80 select-none">🌐 语言 / Language</span>
+          <select id="langSel" class="rounded-xl bg-[#0b142a] border border-[#3b4a70] p-2.5">
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+      </div>
+
       <div class="grid md:grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm opacity-90 mb-1">你的昵称</label>
+          <label class="block text-sm opacity-90 mb-1" id="lblNick">你的昵称</label>
           <input id="nick" class="w-full rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text-[15px] outline-none focus:ring-2 focus:ring-sky-400/40" placeholder="例如：Lucas" />
         </div>
         <div>
-          <label class="block text-sm opacity-90 mb-1">房间号（加入时填写）</label>
+          <label class="block text-sm opacity-90 mb-1" id="lblRoom">房间号（加入时填写）</label>
           <input id="roomInput" class="w-full rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text-[15px] outline-none focus:ring-2 focus:ring-sky-400/40" placeholder="例如：ABCD1" />
         </div>
       </div>
@@ -124,25 +150,25 @@
         <button id="btnCreate" class="btn btn-prim">我是主机（创建房间）</button>
         <button id="btnJoin" class="btn btn-green">加入房间</button>
       </div>
-      <p class="opacity-70 text-sm mt-3">本地原型（BroadcastChannel）：多开浏览器标签页即可联机测试。</p>
+      <p class="opacity-70 text-sm mt-3" id="localNote">本地原型（BroadcastChannel）：多开浏览器标签页即可联机测试。</p>
     </section>
 
     <!-- 大厅 -->
     <section id="lobby" class="hidden glass rounded-2xl p-5 md:p-7 mt-6">
       <div class="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <div class="text-[15px] opacity-80">房间号：<span id="roomShow" class="font-mono px-2 py-1 rounded bg-[#0b142a] border border-[#334155]"></span></div>
-          <div class="text-[15px] opacity-80 mt-1">我的身份：<span id="roleShow" class="font-semibold"></span></div>
+          <div class="text-[15px] opacity-80"><span id="lblRoomShow">房间号：</span><span id="roomShow" class="font-mono px-2 py-1 rounded bg-[#0b142a] border border-[#334155]"></span></div>
+          <div class="text-[15px] opacity-80 mt-1"><span id="lblRole">我的身份：</span><span id="roleShow" class="font-semibold"></span></div>
         </div>
-        <div id="hostPanel" class="hidden flex items-center gap-3">
+        <div id="hostPanel" class="hidden flex items-center gap-3 flex-wrap">
           <div class="flex items-center gap-2">
-            <label class="text-sm opacity-80">座位数（2–4）</label>
+            <label class="text-sm opacity-80" id="lblSeats">座位数（2–4）</label>
             <select id="seatMax" class="rounded-xl bg-[#0b142a] border border-[#3b4a70] p-2.5">
               <option>2</option><option>3</option><option selected>4</option>
             </select>
           </div>
           <div class="flex items-center gap-2">
-            <label class="text-sm opacity-80">起始手牌</label>
+            <label class="text-sm opacity-80" id="lblStartHand">起始手牌</label>
             <input id="startHand" type="number" min="3" max="9" value="5" class="w-20 rounded-xl bg-[#0b142a] border border-[#3b4a70] p-2.5"/>
           </div>
           <button id="btnApply" class="btn">应用设置</button>
@@ -152,23 +178,23 @@
       </div>
 
       <div id="seats" class="mt-5 grid grid-cols-2 md:grid-cols-4 gap-4"></div>
-      <p class="opacity-70 text-sm mt-2">提示：点击空位即可入座；Host 调整座位数会出现/隐藏位置。</p>
+      <p class="opacity-70 text-sm mt-2" id="seatsTip">提示：点击空位即可入座；Host 调整座位数会出现/隐藏位置。</p>
     </section>
 
     <!-- 游戏 -->
     <section id="game" class="hidden glass rounded-2xl p-5 md:p-7 mt-6">
       <div class="flex flex-wrap items-center gap-2 mb-4">
-        <span class="badge">回合：<b id="roundNo"></b></span>
-        <span class="badge">目标：<b id="targetRank" class="text-sky-300"></b></span>
-        <span class="badge">当前：<b id="currentPlayer" class="text-emerald-300"></b></span>
+        <span class="badge"><span id="lblRound">回合：</span><b id="roundNo"></b></span>
+        <span class="badge"><span id="lblTarget">目标：</span><b id="targetRank" class="text-sky-300"></b></span>
+        <span class="badge"><span id="lblCurrent">当前：</span><b id="currentPlayer" class="text-emerald-300"></b></span>
         <span id="yourTurnTag" class="badge hidden ping" style="border-color:#34d399;color:#34d399">你的回合</span>
       </div>
 
       <div id="playersRow" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4"></div>
 
-      <div class="felt mb-4">
+      <div id="felt" class="felt mb-4">
         <div class="flex items-center justify-between">
-          <h3 class="font-semibold">桌面</h3>
+          <h3 class="font-semibold" id="lblTable">桌面</h3>
           <div id="lastClaim" class="text-sm opacity-80"></div>
         </div>
         <div id="pot" class="mt-3"></div>
@@ -176,17 +202,17 @@
 
       <div class="grid md:grid-cols-3 gap-4">
         <div class="md:col-span-2">
-          <h3 class="font-semibold mb-2">我的手牌（点击选择任意张）</h3>
+          <h3 class="font-semibold mb-2" id="lblMyHand">我的手牌（点击选择任意张）</h3>
           <div id="hand" class="min-h-[92px]"></div>
         </div>
         <div class="md:col-span-1">
-          <h3 class="font-semibold mb-2">操作</h3>
+          <h3 class="font-semibold mb-2" id="lblActions">操作</h3>
           <div class="flex flex-wrap gap-2">
             <button id="btnPlay" class="btn btn-prim disabled:opacity-50">出牌（0）</button>
-            <button id="btnLiar" class="btn btn-danger">质疑（LIAR!）</button>
+            <button id="btnLiar" class="btn btn-danger">liar</button>
             <button id="btnReveal" class="btn btn-amber hidden">翻开判定</button>
           </div>
-          <p class="opacity-80 text-sm mt-2">只翻最近一次出牌，3 秒后判定；失败者掷骰（6 即死 / 同点第二次死亡）。</p>
+          <p class="opacity-80 text-sm mt-2" id="revealHint">只翻最近一次出牌，3 秒后判定并出现掷骰动画；失败者掷到 6 立刻死亡，或掷到同点第二次死亡。</p>
         </div>
       </div>
 
@@ -201,11 +227,11 @@
 
       <div id="winnerWrap" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4 z-40">
         <div class="glass-strong rounded-2xl p-6 max-w-md w-full text-center">
-          <h3 class="text-xl font-bold mb-2">胜利！</h3>
-          <p class="mb-4"><span id="winnerName" class="font-semibold"></span> 获得胜利 🎉</p>
+          <h3 class="text-xl font-bold mb-2" id="winTitle">胜利！</h3>
+          <p class="mb-4"><span id="winnerName" class="font-semibold"></span> <span id="winText">获得胜利 🎉</span></p>
           <div class="flex items-center justify-center gap-2">
             <button id="btnBackLobby" class="btn">返回大厅</button>
-            <a href="index.html" class="btn btn-green">返回主网页</a>
+            <a id="btnBackHome" href="index.html" class="btn btn-green">返回主网页</a>
           </div>
         </div>
       </div>
@@ -213,6 +239,93 @@
   </main>
 
 <script>
+/** ===== i18n（每个客户端独立） ===== **/
+let LANG = 'zh';
+const i18n = {
+  zh:{
+    back:"返回主网页", title:"Liar’s Bar", refresh:"刷新页面",
+    connectTitle:"进入或创建房间", nick:"你的昵称", room:"房间号（加入时填写）",
+    create:"我是主机（创建房间）", join:"加入房间",
+    localNote:"本地原型（BroadcastChannel）：多开浏览器标签页即可联机测试。",
+    roomShow:"房间号：", role:"我的身份：", roleHost:"Host", roleGuest:"Guest",
+    seats:"座位数（2–4）", startHand:"起始手牌",
+    apply:"应用设置", start:"开始游戏", restart:"重开",
+    seatsTip:"提示：点击空位即可入座；Host 调整座位数会出现/隐藏位置。",
+    seatN:n=>`座位 ${n}`, joinSeat:"加入此座位", seated:"在座", eliminated:"淘汰",
+    round:"回合：", target:"目标：", current:"当前：", yourTurn:"你的回合",
+    table:"桌面", recent:(name,c)=>`最近：${name} × ${c}`, myHand:"我的手牌（点击选择任意张）", actions:"操作",
+    play: c=>`出牌（${c}）`, liar:"liar", reveal:"翻开判定",
+    revealHint:"只翻最近一次出牌，3 秒后判定并出现掷骰动画；失败者掷到 6 立刻死亡，或掷到同点第二次死亡。",
+    handCount:c=>`手牌 ${c}`, diceList: rolls => `骰：${rolls}`, playing:"出牌中", unknown:"未知",
+    toastTurn:"你的回合", needOne:"请选择至少 1 张", need2p:"至少需要 2 名玩家入座",
+    notEnough:"牌不够，请调小起始手牌或座位数",
+    winner:"胜利！", winText:"获得胜利 🎉", backLobby:"返回大厅", backHome:"返回主网页",
+    claim:(who,target,count)=>`${who}：宣称 ${target} × ${count}`,
+    rollBanner:(name,v,dead)=> dead ? `${name} 掷出 ${v} —— 淘汰！` : `${name} 掷出 ${v} —— 安全`,
+    phNick:"例如：Lucas", phRoom:"例如：ABCD1",
+  },
+  en:{
+    back:"Back to Home", title:"Liar’s Bar", refresh:"Refresh",
+    connectTitle:"Join or Create a Room", nick:"Your nickname", room:"Room ID (to join)",
+    create:"I'm Host (Create)", join:"Join Room",
+    localNote:"Local prototype (BroadcastChannel): open multiple tabs to test.",
+    roomShow:"Room:", role:"Role:", roleHost:"Host", roleGuest:"Guest",
+    seats:"Seats (2–4)", startHand:"Start hand",
+    apply:"Apply", start:"Start Game", restart:"Restart",
+    seatsTip:"Tip: click an empty seat to join; changing seats count shows/hides slots.",
+    seatN:n=>`Seat ${n}`, joinSeat:"Join this seat", seated:"Seated", eliminated:"Eliminated",
+    round:"Round:", target:"Target:", current:"Current:", yourTurn:"Your turn",
+    table:"Table", recent:(name,c)=>`Recent: ${name} × ${c}`, myHand:"Your hand (pick any cards)", actions:"Actions",
+    play: c=>`Play (${c})`, liar:"liar", reveal:"Reveal",
+    revealHint:"Only flip the last batch; resolve in 3s, then the dice anim shows. Roll 6 = death, or 2nd time same pip = death.",
+    handCount:c=>`Cards ${c}`, diceList: rolls => `Dice: ${rolls}`, playing:"Playing", unknown:"Unknown",
+    toastTurn:"Your turn", needOne:"Select at least 1", need2p:"Need at least 2 players",
+    notEnough:"Not enough cards, reduce seats or start hand",
+    winner:"Victory!", winText:"wins 🎉", backLobby:"Back to Lobby", backHome:"Back to Home",
+    claim:(who,target,count)=>`${who}: claims ${target} × ${count}`,
+    rollBanner:(name,v,dead)=> dead ? `${name} rolled ${v} — DEAD!` : `${name} rolled ${v} — safe`,
+    phNick:"e.g., Lucas", phRoom:"e.g., ABCD1",
+  }
+};
+function t(key, ...args){ const v=i18n[LANG][key]; return typeof v==='function'?v(...args):(v??key); }
+function applyStaticTexts(){
+  document.documentElement.lang = LANG;
+  document.getElementById('hdrBackTxt').textContent = t('back');
+  document.getElementById('hdrTitle').textContent = t('title');
+  document.getElementById('btnResetAll').textContent = t('refresh');
+  document.getElementById('connTitle').textContent = t('connectTitle');
+  document.getElementById('lblNick').textContent = t('nick');
+  document.getElementById('lblRoom').textContent = t('room');
+  document.getElementById('btnCreate').textContent = t('create');
+  document.getElementById('btnJoin').textContent = t('join');
+  document.getElementById('localNote').textContent = t('localNote');
+  document.getElementById('lblRoomShow').textContent = t('roomShow');
+  document.getElementById('lblRole').textContent = t('role');
+  document.getElementById('lblSeats').textContent = t('seats');
+  document.getElementById('lblStartHand').textContent = t('startHand');
+  document.getElementById('btnApply').textContent = t('apply');
+  document.getElementById('btnStart').textContent = t('start');
+  document.getElementById('btnHostRestart').textContent = t('restart');
+  document.getElementById('seatsTip').textContent = t('seatsTip');
+  document.getElementById('lblRound').textContent = t('round');
+  document.getElementById('lblTarget').textContent = t('target');
+  document.getElementById('lblCurrent').textContent = t('current');
+  document.getElementById('yourTurnTag').textContent = t('yourTurn');
+  document.getElementById('lblTable').textContent = t('table');
+  document.getElementById('lblMyHand').textContent = t('myHand');
+  document.getElementById('lblActions').textContent = t('actions');
+  document.getElementById('btnLiar').textContent = t('liar');
+  document.getElementById('btnReveal').textContent = t('reveal');
+  document.getElementById('revealHint').textContent = t('revealHint');
+  document.getElementById('winTitle').textContent = t('winner');
+  document.getElementById('winText').textContent = t('winText');
+  document.getElementById('btnBackLobby').textContent = t('backLobby');
+  document.getElementById('btnBackHome').textContent = t('backHome');
+  // placeholders
+  document.getElementById('nick').placeholder = t('phNick');
+  document.getElementById('roomInput').placeholder = t('phRoom');
+}
+
 /** ===== 传输 / 全局 ===== **/
 let ROOM_ID = null;
 let bc = null;
@@ -220,7 +333,7 @@ const uid = crypto.randomUUID();
 let me = { uid, name: "" };
 let isHost = false;
 function post(msg){ bc && bc.postMessage(msg); }
-function toast(msg){ const t=document.getElementById('toast'); t.firstElementChild.textContent=msg; t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'),1600); }
+function toast(msg){ const tdiv=document.getElementById('toast'); tdiv.firstElementChild.textContent=msg; tdiv.classList.remove('hidden'); setTimeout(()=>tdiv.classList.add('hidden'),1600); }
 
 // 牌：2 Joker + 6×A/Q/K
 const TARGETS = ["A","Q","K"];
@@ -258,7 +371,7 @@ function openChannel(){
   bc.onmessage = (ev)=>handleMessage(ev.data||{});
   enterLobbyUI();
   document.getElementById("roomShow").textContent = ROOM_ID;
-  document.getElementById("roleShow").textContent = isHost ? "Host" : "Guest";
+  document.getElementById("roleShow").textContent = isHost ? t('roleHost') : t('roleGuest');
   document.getElementById("hostPanel").classList.toggle("hidden", !isHost);
 }
 
@@ -285,9 +398,9 @@ function hostApplySettings(){
 }
 function hostStart(){
   const seated = H.players.filter(p=>p && p.alive);
-  if (seated.length < 2){ toast("至少需要 2 名玩家入座"); return; }
+  if (seated.length < 2){ toast(t('need2p')); return; }
   const deck = makeCustomDeck();
-  if (seated.length * H.settings.startHand > deck.length){ toast("牌不够，请调小起始手牌或座位数"); return; }
+  if (seated.length * H.settings.startHand > deck.length){ toast(t('notEnough')); return; }
 
   for (const p of H.players){
     if (p && p.alive){ p.hand = deck.splice(0, H.settings.startHand); p.sel = new Set(); }
@@ -304,10 +417,10 @@ function hostStart(){
     if (hostSeat >= 0){ myHand = H.players[hostSeat].hand.slice(); myHandHash = hashHand(myHand); renderHandOnly(); }
   }
 
-  // 先发手牌，再广播状态
   sendHands();
   lastTurnUid = null;
   broadcastState();
+  showSmoke();
 }
 function hostRestart(){
   H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null;
@@ -346,6 +459,13 @@ function hostLiar(_uid){
   lastReveal = null;
   broadcastState();
 }
+
+/* === 掷骰动画总时长（与 showDice 保持一致）=== */
+const DICE_TURNS = 14, DICE_BASE = 70, DICE_INC = 35, DICE_HOLD = 1000;
+function diceAnimMs(){
+  return (DICE_TURNS+1)*DICE_BASE + (DICE_TURNS*(DICE_TURNS+1)/2)*DICE_INC + DICE_HOLD; // ≈ 5725ms
+}
+
 function hostReveal(){
   if (!H.awaitingReveal || H.pot.length===0) return;
   const last = H.pot[H.pot.length-1];
@@ -359,18 +479,29 @@ function hostReveal(){
     const winnerId = truthful ? last.by : H.challengerId;   // 胜者（下一轮先手）
     const loserSeat  = H.players.findIndex(p=>p && p.uid===loserId);
     const winnerSeat = H.players.findIndex(p=>p && p.uid===winnerId);
-
     if (loserSeat<0) return;
+
     const P = H.players[loserSeat];
     const roll = 1 + rnd(6);
-    P.rolls.push(roll); P.rollMap[roll]=(P.rollMap[roll]||0)+1;
-    let dieNow = (roll===6) || (P.rollMap[roll]>=2);
-    if (dieNow){ P.alive=false; P.hand=[]; }
-    // 广播一个骰子动画事件（内置 SVG）
+
+    // 广播“滚动中的骰子”；此时不更新任何状态/显示
     post({t:"DICE_ANIM", who:P.name, value:roll});
 
-    const startIndex = (winnerSeat>=0 && H.players[winnerSeat]?.alive) ? winnerSeat : nextAliveFrom(H, loserSeat);
-    redealFrom(startIndex);
+    // 等动画完全结束后，再更新状态并显示结果 Banner
+    setTimeout(()=>{
+      P.rolls.push(roll); P.rollMap[roll]=(P.rollMap[roll]||0)+1;
+      let dieNow = (roll===6) || (P.rollMap[roll]>=2);
+      if (dieNow){ P.alive=false; P.hand=[]; }
+
+      // 只发结果，客户端按自己的语言显示
+      post({t:"DICE_RESULT", who:P.name, uid:P.uid, value:roll, died:dieNow});
+
+      const startIndex = (winnerSeat>=0 && H.players[winnerSeat]?.alive) ? winnerSeat : nextAliveFrom(H, loserSeat);
+
+      // 让 Banner 停留 ~1.2s 再发新局
+      setTimeout(()=>{ redealFrom(startIndex); }, 1200);
+    }, diceAnimMs());
+
   }, 3000);
 }
 function redealFrom(startIndex){
@@ -398,6 +529,7 @@ function redealFrom(startIndex){
   }
   sendHands();
   broadcastState();
+  showSmoke();
 }
 function sendHands(){ H.players.forEach(p=>{ if (p && p.alive) post({t:"HAND", to:p.uid, hand:p.hand}); }); }
 
@@ -443,35 +575,18 @@ function broadcastState(withWinner=false){
 let L = null; // lobby
 let S = null; // state
 let myHand = []; // only mine
-let myHandHash = ""; // 手牌哈希，避免不必要刷新
+let myHandHash = ""; // 手牌哈希
 let lastReveal = null;
 let lastTurnUid = null;
+let prevRoundNo = null;
 function hashHand(h){ return (h||[]).map(c=>c.r).join('|'); }
 
-/** ===== UI 工具：牌面/图标/骰子 ===== **/
-function glyphFor(r){
-  switch(r){
-    case 'A': return '✪';
-    case 'K': return '♚';
-    case 'Q': return '👑';
-    case 'JOKER': return '🃏';
-    default: return '';
-  }
-}
-function cardFrontHTML(r){
-  return `<div class="front">${r!=='?'?`<span class="rank">${r==='JOKER'?'JK':r}</span><span class="glyph">${glyphFor(r)}</span>`:'<span class="rank">?</span>'}</div>`;
-}
+/** ===== UI 工具 ===== **/
+function glyphFor(r){ switch(r){ case 'A': return '✪'; case 'K': return '♚'; case 'Q': return '👑'; case 'JOKER': return '🃏'; default: return ''; } }
+function cardFrontHTML(r){ return `<div class="front">${r!=='?'?`<span class="rank">${r==='JOKER'?'JK':r}</span><span class="glyph">${glyphFor(r)}</span>`:'<span class="rank">?</span>'}</div>`; }
 function cardBackHTML(){ return `<div class="back">🂠</div>`; }
 
-function showDice(value, who){
-  const layer = document.getElementById('diceLayer');
-  const box = document.getElementById('diceBox');
-  box.innerHTML = diceSVG(value) + (who?`<div style="margin-top:8px; font-size:14px; opacity:.9">${who}</div>`:'');
-  layer.classList.remove('hidden');
-  setTimeout(()=> layer.classList.add('hidden'), 1200);
-}
 function diceSVG(n){
-  // 简洁骰子 SVG（内置）
   const spots = {
     1:[[50,50]], 2:[[25,25],[75,75]], 3:[[25,25],[50,50],[75,75]],
     4:[[25,25],[25,75],[75,25],[75,75]],
@@ -483,6 +598,69 @@ function diceSVG(n){
     ${spots.map(([x,y])=>`<circle cx="${x}" cy="${y}" r="6" fill="#e5ecff"/>`).join('')}
   </svg>`;
 }
+// 掷骰：先滚动→减速→定格（与 host 的时间参数一致）
+function showDice(finalValue, who){
+  const layer = document.getElementById('diceLayer');
+  const box = document.getElementById('diceBox');
+  layer.classList.remove('hidden');
+  box.classList.add('spin');
+
+  const rolls = [];
+  for (let i=0;i<DICE_TURNS;i++) rolls.push(1 + Math.floor(Math.random()*6));
+  rolls.push(finalValue);
+
+  let delay = 0;
+  rolls.forEach((val, i) => {
+    delay += DICE_BASE + i * DICE_INC;
+    setTimeout(()=>{
+      box.innerHTML = diceSVG(val) + (who ? `<div style="margin-top:8px; font-size:14px; opacity:.9">${who}</div>` : '');
+      if (i === rolls.length - 1) {
+        box.classList.remove('spin');
+        setTimeout(()=> layer.classList.add('hidden'), DICE_HOLD);
+      }
+    }, delay);
+  });
+}
+function showSmoke(){
+  const layer = document.getElementById('smokeLayer');
+  layer.innerHTML = '';
+  layer.classList.remove('hidden');
+  const count = 36;
+  for (let i=0;i<count;i++){
+    const s = document.createElement('div');
+    s.className = 'puff';
+    const left = Math.random()*100;
+    const delay = Math.random()*0.8;
+    const dur = 2.2 + Math.random()*1.2;
+    const drift = (-30 + Math.random()*60) + 'vw';
+    s.style.left = `calc(${left}vw - 60px)`;
+    s.style.animationDuration = `${dur}s`;
+    s.style.animationDelay = `${delay}s`;
+    s.style.setProperty('--x', drift);
+    layer.appendChild(s);
+  }
+  setTimeout(()=>layer.classList.add('hidden'), 3000);
+}
+function launchConfetti(){
+  const colors = ['#f472b6','#60a5fa','#fbbf24','#34d399','#a78bfa','#f87171','#22d3ee'];
+  const n = 120;
+  for (let i=0;i<n;i++){
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    const x = Math.random()*100;
+    const tx = (Math.random()*60 - 30) + 'vw';
+    const rot = (Math.random()*720 - 360) + 'deg';
+    const dur = 1.6 + Math.random()*1.2;
+    c.style.left = x+'vw';
+    c.style.background = `linear-gradient(180deg, ${colors[Math.floor(Math.random()*colors.length)]}, #fff0)`;
+    c.style.setProperty('--tx', tx);
+    c.style.setProperty('--rot', rot);
+    c.style.animationDuration = dur + 's';
+    document.body.appendChild(c);
+    setTimeout(()=>c.remove(), dur*1000);
+  }
+}
+function potFlashOnce(){ const felt = document.getElementById('felt'); felt.classList.add('pot-flash'); setTimeout(()=>felt.classList.remove('pot-flash'), 550); }
 
 /** ===== 消息处理（Host & Guest） ===== **/
 function handleMessage(msg){
@@ -517,12 +695,15 @@ function handleMessage(msg){
     case "REVEAL_VIEW":
       if (!isHost){
         lastReveal = msg.cards||[];
-        toast("正在翻开最近一次出牌…");
+        toast(LANG==='zh' ? "正在翻开最近一次出牌…" : "Revealing last batch…");
         renderAll();
       }
       break;
     case "DICE_ANIM":
       showDice(msg.value, msg.who||'');
+      break;
+    case "DICE_RESULT":
+      showRollBanner(msg.uid, msg.who, msg.value, msg.died);
       break;
   }
 }
@@ -541,18 +722,19 @@ function enterGameUI(){
 /** ===== 大厅渲染 ===== **/
 function renderLobby(){ renderLobbyLocal(L); }
 function renderLobbyLocal(lobby){
+  applyStaticTexts(); // 按本端语言刷新静态文本
   const seats = document.getElementById("seats"); seats.innerHTML="";
   const seatsN = lobby.settings.seats;
   for(let i=0;i<seatsN;i++){
     const cell = document.createElement('div'); cell.className = "rounded-xl p-3 border border-[#334155] bg-[#0b142a]";
     const occupant = lobby.seats[i];
     if (occupant){
-      cell.innerHTML = `<div class="font-semibold mb-1">座位 ${i+1}</div>
+      cell.innerHTML = `<div class="font-semibold mb-1">${t('seatN', i+1)}</div>
         <div class="opacity-90">${occupant.name}</div>
-        <div class="text-sm opacity-70 mt-1">${occupant.alive? "在座" : "淘汰"}</div>`;
+        <div class="text-sm opacity-70 mt-1">${occupant.alive? t('seated') : t('eliminated')}</div>`;
     } else {
-      cell.innerHTML = `<div class="font-semibold mb-2">座位 ${i+1}</div>
-        <button class="btn btn-green w-full">加入此座位</button>`;
+      cell.innerHTML = `<div class="font-semibold mb-2">${t('seatN', i+1)}</div>
+        <button class="btn btn-green w-full">${t('joinSeat')}</button>`;
       const btn = cell.querySelector('button');
       btn.onclick = ()=> post({t:"TAKE_SEAT", seat:i, uid:uid, name:me.name});
     }
@@ -567,9 +749,14 @@ function renderLobbyLocal(lobby){
 /** ===== 游戏渲染 ===== **/
 function renderAll(){
   if (!S) return;
+
+  // 不在翻牌阶段，清空本地 lastReveal，避免旧翻牌残留
+  if (!S.awaitingReveal) lastReveal = null;
+
   if (S.winner){
     document.getElementById("winnerName").textContent = S.winner.name;
     document.getElementById("winnerWrap").classList.remove("hidden");
+    launchConfetti();
   }
   enterGameUI();
   document.getElementById("roundNo").textContent = S.roundNo||1;
@@ -584,49 +771,66 @@ function renderAll(){
     if (p===null) return;
     const wrap = document.createElement('div');
     wrap.className = "rounded-xl p-3 border " + (i===currentSeat?"border-sky-400/60":"border-[#334155] bg-[#0b142a]");
+    wrap.dataset.uid = p.uid || '';
     if (!p.alive) wrap.classList.add("dead");
     const rollsTxt = p.rolls?.length ? p.rolls.join(", ") : "—";
     wrap.innerHTML = `
       <div class="flex items-center justify-between">
         <div class="font-semibold">${p.name}</div>
-        <div class="text-sm opacity-80">手牌 ${p.handCount}</div>
+        <div class="text-sm opacity-80">${t('handCount', p.handCount)}</div>
       </div>
       <div class="flex items-center gap-2 text-sm flex-wrap mt-1">
-        <span class="badge">骰：${rollsTxt}</span>
-        ${p.alive ? '' : '<span class="badge" style="border-color:#fb7185;color:#fb7185">已淘汰</span>'}
-        ${i===currentSeat && p.alive ? '<span class="badge" style="border-color:#818cf8;color:#a5b4fc">出牌中</span>' : ''}
-      </div>`;
+        <span class="badge">${t('diceList', rollsTxt)}</span>
+        ${p.alive ? '' : `<span class="badge" style="border-color:#fb7185;color:#fb7185">${t('eliminated')}</span>`}
+        ${i===currentSeat && p.alive ? `<span class="badge" style="border-color:#818cf8;color:#a5b4fc">${t('playing')}</span>` : ''}
+      </div>
+      <div class="roll-banner-area"></div>
+    `;
     row.appendChild(wrap);
   });
 
-  // 桌面（翻开阶段仅显示被质疑的“最后一批”）
+  // 桌面：翻牌时只显示最后一批
   const potDiv = document.getElementById("pot"); potDiv.innerHTML="";
   if (S.pot.length){
-    const dataBatches = S.awaitingReveal ? [ S.pot[S.pot.length-1] ] : S.pot;
-    dataBatches.forEach((batch, idx)=>{
+    const revealMode = !!S.awaitingReveal;
+    const batches = revealMode ? [ S.pot[S.pot.length-1] ] : S.pot;
+
+    batches.forEach((batch, idx)=>{
       const rowDiv = document.createElement('div'); rowDiv.className = "flex items-center gap-3 mb-2 flex-wrap";
-      const who = (S.players.find(x=>x && x.uid===batch.by)||{}).name || "未知";
-      rowDiv.innerHTML = `<span class="text-sm opacity-90 px-2 py-1 rounded bg-[#0b142a] border border-[#334155]">${who}：宣称 ${S.target} × ${batch.count}</span>`;
+      const who = (S.players.find(x=>x && x.uid===batch.by)||{}).name || t('unknown');
+      rowDiv.innerHTML = `<span class="text-sm opacity-90 px-2 py-1 rounded bg-[#0b142a] border border-[#334155]">${t('claim', who, S.target, batch.count)}</span>`;
+
       const cards = document.createElement('div'); cards.className="flex flex-wrap";
+      const isRevealBatch = revealMode && idx===batches.length-1 && lastReveal;
+
       for(let k=0;k<batch.count;k++){
-        const holder=document.createElement('div'); holder.className="card " + ((S.awaitingReveal && idx===dataBatches.length-1) ? "flip " : "");
+        const holder=document.createElement('div'); holder.className="card";
         const inner=document.createElement('div'); inner.className="inner";
-        if (S.awaitingReveal && idx===dataBatches.length-1 && lastReveal && lastReveal[k]){
-          // 翻开显示正面
+        if (isRevealBatch && lastReveal[k]){
           const r = lastReveal[k].r;
-          inner.innerHTML = cardBackHTML()+cardFrontHTML(r);
+          inner.innerHTML = cardFrontHTML(r)+cardBackHTML();
           if (r==="JOKER") holder.classList.add('joker');
+          holder.classList.add('face-back','revealable');
         } else {
-          // 背面
           inner.innerHTML = cardFrontHTML('?')+cardBackHTML();
+          holder.classList.add('face-back');
         }
         holder.appendChild(inner);
         cards.appendChild(holder);
       }
       rowDiv.appendChild(cards); potDiv.appendChild(rowDiv);
     });
+
+    if (S.awaitingReveal && lastReveal){
+      requestAnimationFrame(()=>{
+        document.querySelectorAll('#pot .revealable.face-back').forEach(h=>{
+          h.classList.remove('face-back');
+        });
+      });
+    }
   }
-  document.getElementById("lastClaim").textContent = S.lastClaim ? `最近：${(S.players.find(p=>p&&p.uid===S.lastClaim.by)||{}).name||"未知"} × ${S.lastClaim.count}` : "—";
+  document.getElementById("lastClaim").textContent = S.lastClaim ? t('recent', (S.players.find(p=>p&&p.uid===S.lastClaim.by)||{}).name||t('unknown'), S.lastClaim.count) : "—";
+  if (S.lastClaim) potFlashOnce();
 
   // 操作可用性
   const yourTurnTag = document.getElementById("yourTurnTag");
@@ -639,11 +843,19 @@ function renderAll(){
   // 到你时提示一次
   const nowTurnUid = currentPlayer ? currentPlayer.uid : null;
   if (nowTurnUid === uid && lastTurnUid !== uid){
-    toast("你的回合");
+    toast(t('toastTurn'));
   }
   lastTurnUid = nowTurnUid;
 
   renderHandOnly();
+}
+
+/** ===== 掷骰结果 Banner（本端语言） ===== **/
+function showRollBanner(playerUid, name, value, died){
+  const card = document.querySelector(`#playersRow [data-uid="${playerUid}"] .roll-banner-area`);
+  if (!card) return;
+  card.innerHTML = `<div class="roll-banner">${i18n[LANG].rollBanner(name, value, died)}</div>`;
+  setTimeout(()=>{ card.innerHTML=""; }, 1200);
 }
 
 /** ===== 手牌渲染与选择 ===== **/
@@ -655,16 +867,16 @@ function renderHandOnly(){
   (myHand||[]).forEach((card, idx)=>{
     const holder=document.createElement('div'); holder.className="card"+(card.r==="JOKER"?" joker":"")+(sel.has(idx)?" sel":"");
     const inner=document.createElement('div'); inner.className="inner";
-    inner.innerHTML = cardFrontHTML(card.r)+cardBackHTML(); // 手牌始终显示正面
+    inner.innerHTML = cardFrontHTML(card.r)+cardBackHTML(); // 手牌始终正面
     holder.appendChild(inner);
     holder.onclick = ()=>{
       if (sel.has(idx)) sel.delete(idx); else sel.add(idx);
-      document.getElementById("btnPlay").textContent = `出牌（${sel.size}）`;
+      document.getElementById("btnPlay").textContent = t('play', sel.size);
       holder.classList.toggle("sel");
     };
     handDiv.appendChild(holder);
   });
-  document.getElementById("btnPlay").textContent = `出牌（${sel.size}）`;
+  document.getElementById("btnPlay").textContent = t('play', sel.size);
 }
 
 /** ===== 事件绑定 ===== **/
@@ -672,13 +884,15 @@ document.getElementById("btnCreate").onclick = ()=>{
   const name = (document.getElementById("nick").value||"Player").trim();
   const rid = Math.random().toString(36).slice(2,7).toUpperCase();
   hostInit(rid, name);
+  applyStaticTexts();
 };
 document.getElementById("btnJoin").onclick = ()=>{
   const name = (document.getElementById("nick").value||"Player").trim();
   const rid = (document.getElementById("roomInput").value||"").trim().toUpperCase();
-  if (!rid) return alert("请输入房间号");
+  if (!rid) return alert(LANG==='zh' ? "请输入房间号" : "Enter room ID");
   guestJoin(rid, name);
   post({t:"REQ_SETTINGS"});
+  applyStaticTexts();
 };
 document.getElementById("btnResetAll").onclick = ()=> location.reload();
 
@@ -698,19 +912,47 @@ document.getElementById("btnStart").onclick = startLocalOrBroadcast;
 document.getElementById("btnHostRestart").onclick = restartLocalOrBroadcast;
 
 document.getElementById("btnPlay").onclick = ()=>{
-  if (selectedIndices.size===0) return toast("请选择至少 1 张");
-  const indices = Array.from(selectedIndices).sort((a,b)=>a-b);
-  playLocalOrBroadcast(indices);
-  selectedIndices.clear();
-  document.getElementById("btnPlay").textContent = `出牌（0）`;
+  if (selectedIndices.size===0) return toast(t('needOne'));
+  const handDiv = document.getElementById("hand");
+  const idxs = Array.from(selectedIndices).sort((a,b)=>a-b);
+  idxs.forEach(i=>{
+    const el = handDiv.children[i];
+    if (el) el.classList.add('burst');
+  });
+  document.getElementById("btnPlay").disabled = true;
+  setTimeout(()=>{
+    playLocalOrBroadcast(idxs);
+    selectedIndices.clear();
+    document.getElementById("btnPlay").textContent = t('play', 0);
+    document.getElementById("btnPlay").disabled = false;
+  }, 180);
 };
-document.getElementById("btnLiar").onclick = ()=> liarLocalOrBroadcast();
+
+// liar：拍桌抖动 + 震动
+document.getElementById("btnLiar").onclick = ()=>{
+  const felt = document.getElementById("felt");
+  felt.classList.add('shake');
+  setTimeout(()=> felt.classList.remove('shake'), 420);
+  if (navigator.vibrate) { try{ navigator.vibrate([80, 40, 120]); }catch{} }
+  liarLocalOrBroadcast();
+};
+
 document.getElementById("btnReveal").onclick = ()=> revealLocalOrBroadcast();
 document.getElementById("btnBackLobby").onclick = ()=> {
   document.getElementById("winnerWrap").classList.add("hidden");
   backLobbyLocalOrBroadcast();
 };
+
+// 语言切换（加入前，每端独立）
+document.getElementById("langSel").addEventListener("change", (e)=>{
+  LANG = e.target.value;
+  applyStaticTexts();
+  if (L) renderLobbyLocal(L);
+  if (S) renderAll();
+});
+
+// 初始应用一次语言文本
+applyStaticTexts();
 </script>
 </body>
 </html>
-
