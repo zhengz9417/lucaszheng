@@ -209,6 +209,28 @@ async function hostBackToLobbyReset(){
   window.App.ui.enterLobbyUI();
 }
 
+async function hostNewGame(){
+  // 重置所有在座玩家为存活、清空骰子记录与手牌
+  H.players = H.players.map(p => p ? { ...p, alive:true, rolls:[], rollMap:{}, hand:[] } : p);
+
+  // 发新牌并开始第 1 回合
+  const seated = H.players.filter(p=>p);
+  const deck = makeCustomDeck();
+  if (seated.length * H.settings.startHand > deck.length) {
+    H.settings.startHand = Math.max(1, Math.floor(deck.length / seated.length));
+  }
+  for (const p of H.players) { if (p) p.hand = deck.splice(0, H.settings.startHand); }
+
+  H.roundNo = 1;
+  H.target = TARGETS[rnd(TARGETS.length)];
+  H.turn = H.players.findIndex(p=>p && p.alive);
+  H.pot = [];
+  H.awaitingReveal = false;
+  H.challengerId = null;
+
+  await sendHands(); await writeLobby(); await writeState();
+}
+
 /* ---------- Host 监听 actions（避免索引） ---------- */
 function attachHostActionListener(){
   const { actions } = roomRefs(ROOM_ID);
@@ -302,3 +324,4 @@ window.App.logic = {
   sessionRefs: ()=>({ ROOM_ID, isHost, uid, me }),
   getSelected: ()=>selectedIndices,
 };
+
