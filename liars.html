@@ -225,7 +225,9 @@
         <div class="glass-strong rounded-2xl p-6 max-w-md w-full text-center">
           <h3 class="text-xl font-bold mb-2" id="winTitle">胜利！</h3>
           <p class="mb-4"><span id="winnerName" class="font-semibold"></span> <span id="winText">获得胜利 🎉</span></p>
-          <div class="flex items-center justify-center gap-2">
+          <div class="flex items-center justify-center gap-2 flex-wrap">
+            <!-- 新增：Host 专用“再来一局” -->
+            <button id="btnNewGame" class="btn btn-prim hidden">再来一局</button>
             <button id="btnBackLobby" class="btn">返回大厅</button>
             <a id="btnBackHome" href="index.html" class="btn btn-green">返回主网页</a>
           </div>
@@ -246,7 +248,7 @@ const i18n = {
     seats:"座位数（2–4）", startHand:"起始手牌",
     apply:"应用设置", start:"开始游戏", restart:"重开",
     seatsTip:"提示：点击空位即可入座；Host 调整座位数会出现/隐藏位置。",
-    seatN:n=>`座位 ${n}`, joinSeat:"加入此座位", seated:"在座", eliminated:"淘汰",
+    seatN:n=>`座位 ${n}`, joinSeat:"加入此座位", leaveSeat:"退出座位", seated:"在座", eliminated:"淘汰",
     round:"回合：", target:"目标：", current:"当前：", yourTurn:"你的回合",
     table:"桌面", recent:(name,c)=>`最近：${name} × ${c}`, myHand:"我的手牌（点击选择任意张）", actions:"操作",
     play:c=>`出牌（${c}）`, liar:"liar", reveal:"翻开判定",
@@ -255,6 +257,7 @@ const i18n = {
     toastTurn:"你的回合", needOne:"请选择至少 1 张", need2p:"至少需要 2 名玩家入座",
     notEnough:"牌不够，请调小起始手牌或座位数",
     winner:"胜利！", winText:"获得胜利 🎉", backLobby:"返回大厅", backHome:"返回主网页",
+    newGame:"再来一局",
     claim:(who,target,count)=>`${who}：宣称 ${target} × ${count}`,
     rollBanner:(name,v,dead)=> dead ? `${name} 掷出 ${v} —— 淘汰！` : `${name} 掷出 ${v} —— 安全`,
     phNick:"例如：Lucas", phRoom:"例如：ABCD1",
@@ -267,7 +270,7 @@ const i18n = {
     seats:"Seats (2–4)", startHand:"Start hand",
     apply:"Apply", start:"Start Game", restart:"Restart",
     seatsTip:"Tip: click an empty seat to join; changing seats count shows/hides slots.",
-    seatN:n=>`Seat ${n}`, joinSeat:"Join this seat", seated:"Seated", eliminated:"Eliminated",
+    seatN:n=>`Seat ${n}`, joinSeat:"Join this seat", leaveSeat:"Leave seat", seated:"Seated", eliminated:"Eliminated",
     round:"Round:", target:"Target:", current:"Current:", yourTurn:"Your turn",
     table:"Table", recent:(name,c)=>`Recent: ${name} × ${c}`, myHand:"Your hand (pick any cards)", actions:"Actions",
     play:c=>`Play (${c})`, liar:"liar", reveal:"Reveal",
@@ -276,6 +279,7 @@ const i18n = {
     toastTurn:"Your turn", needOne:"Select at least 1", need2p:"Need at least 2 players",
     notEnough:"Not enough cards, reduce seats or start hand",
     winner:"Victory!", winText:"wins 🎉", backLobby:"Back to Lobby", backHome:"Back to Home",
+    newGame:"New Game",
     claim:(who,target,count)=>`${who}: claims ${target} × ${count}`,
     rollBanner:(name,v,dead)=> dead ? `${name} rolled ${v} — DEAD!` : `${name} rolled ${v} — safe`,
     phNick:"e.g., Lucas", phRoom:"e.g., ABCD1",
@@ -315,6 +319,7 @@ function applyStaticTexts(){
   document.getElementById('winText').textContent = t('winText');
   document.getElementById('btnBackLobby').textContent = t('backLobby');
   document.getElementById('btnBackHome').textContent = t('backHome');
+  const ng = document.getElementById('btnNewGame'); if (ng) ng.textContent = t('newGame');
   document.getElementById('nick').placeholder = t('phNick');
   document.getElementById('roomInput').placeholder = t('phRoom');
 }
@@ -507,6 +512,42 @@ async function hostRestart(){
   await writeState();
 }
 
+/* ★ 新增：再来一局（不回大厅，直接新一轮） */
+async function hostNewGame(){
+  // 全员复活、清空记录与手牌，保留座位
+  H.players = H.players.map(p => p ? { ...p, alive:true, rolls:[], rollMap:{}, hand:[] } : p);
+
+  // 发新牌并开始第 1 回合
+  const seated = H.players.filter(p=>p);
+  const deck = makeCustomDeck();
+  if (seated.length * H.settings.startHand > deck.length) {
+    H.settings.startHand = Math.max(1, Math.floor(deck.length / seated.length));
+  }
+  for (const p of H.players){ if (p) p.hand = deck.splice(0, H.settings.startHand); }
+
+  H.roundNo = 1;
+  H.target  = TARGETS[rnd(TARGETS.length)];
+  H.turn    = H.players.findIndex(p=>p && p.alive);
+  H.pot     = [];
+  H.awaitingReveal = false;
+  H.challengerId   = null;
+
+  await sendHands(); await writeLobby(); await writeState();
+  showSmoke();
+}
+
+/* ★ 新增：退座（仅未开局时允许；Host 位不可退） */
+async function hostLeaveSeatAction(_uid, seatIdx){
+  if ((H.roundNo||0) > 0) return; // 开局后忽略
+  const hostUid = H.players[0]?.uid;
+  let idx = typeof seatIdx === 'number' ? seatIdx : H.players.findIndex(p=>p && p.uid===_uid);
+  if (idx < 0) return;
+  if (H.players[idx] && H.players[idx].uid === hostUid) return; // Host 不可退
+
+  H.players[idx] = null;
+  await writeLobby();
+}
+
 async function hostTakeSeat(seat, _uid, name){
   if (seat<0 || seat>=H.players.length) return;
   if (H.players[seat]) return;
@@ -608,7 +649,7 @@ async function hostBackToLobbyReset(){
   enterLobbyUI();
 }
 
-/* ===================== Host 监听 actions（避免索引） ===================== */
+/* ===================== Host 监听 actions ===================== */
 let unsubActions = null;
 function attachHostActionListener(){
   const { actions } = roomRefs(ROOM_ID);
@@ -622,13 +663,15 @@ function attachHostActionListener(){
 
       try{
         switch(a.type){
-          case 'TAKE_SEAT': await hostTakeSeat(a.seat, a.uid, a.name); break;
-          case 'PLAY':      await hostPlay(a.uid, a.indices); break;
-          case 'LIAR':      await hostLiar(a.uid); break;
-          case 'REVEAL':    await hostReveal(); break;
+          case 'TAKE_SEAT':    await hostTakeSeat(a.seat, a.uid, a.name); break;
+          case 'LEAVE_SEAT':   await hostLeaveSeatAction(a.uid, a.seat); break;              // ★ 新增
+          case 'PLAY':         await hostPlay(a.uid, a.indices); break;
+          case 'LIAR':         await hostLiar(a.uid); break;
+          case 'REVEAL':       await hostReveal(); break;
           case 'HOST_APPLY':   if (a.uid===uid) await hostApplySettings(); break;
           case 'HOST_START':   if (a.uid===uid) await hostStart(); break;
           case 'HOST_RESTART': if (a.uid===uid) await hostRestart(); break;
+          case 'HOST_NEW_GAME':if (a.uid===uid) await hostNewGame(); break;                  // ★ 新增
           case 'BACK_TO_LOBBY': await hostBackToLobbyReset(); break;
         }
       } finally {
@@ -715,10 +758,10 @@ function attachCommonListeners(){
   });
 }
 
-/* ===================== 事件发送（确保登录 + 报错提示） ===================== */
+/* ===================== 事件发送 ===================== */
 async function sendAction(data){
   try{
-    await ensureAuth();                 // 确保匿名登录就绪
+    await ensureAuth();
     if (!uid) uid = auth.currentUser.uid;
     const { actions } = roomRefs(ROOM_ID);
     return await actions.add({
@@ -738,17 +781,26 @@ async function sendAction(data){
 function enterLobbyUI(){ document.getElementById("connect").classList.add("hidden"); document.getElementById("game").classList.add("hidden"); document.getElementById("lobby").classList.remove("hidden"); }
 function enterGameUI(){ document.getElementById("lobby").classList.add("hidden"); document.getElementById("game").classList.remove("hidden"); }
 
+/* ★ 更新：大厅允许“退出座位” */
 function renderLobbyLocal(lobby){
   applyStaticTexts();
   const seats = document.getElementById("seats"); seats.innerHTML="";
   const seatsN = lobby.settings.seats;
+  const hostUid = lobby.hostUid;
+
   for(let i=0;i<seatsN;i++){
     const cell = document.createElement('div'); cell.className = "rounded-xl p-3 border border-[#334155] bg-[#0b142a]";
     const occupant = lobby.seats[i];
     if (occupant){
+      const canLeave = (occupant.uid === uid) && (occupant.uid !== hostUid); // 自己且非 Host
       cell.innerHTML = `<div class="font-semibold mb-1">${t('seatN', i+1)}</div>
         <div class="opacity-90">${occupant.name}</div>
-        <div class="text-sm opacity-70 mt-1">${occupant.alive? t('seated') : t('eliminated')}</div>`;
+        <div class="text-sm opacity-70 mt-1">${occupant.alive? t('seated') : t('eliminated')}</div>
+        ${canLeave ? `<button class="btn btn-danger w-full mt-2">${t('leaveSeat')}</button>` : ``}`;
+      if (canLeave){
+        const btn = cell.querySelector('button');
+        btn.onclick = async ()=>{ try{ await sendAction({ type:'LEAVE_SEAT', seat:i }); }catch(e){} };
+      }
     } else {
       cell.innerHTML = `<div class="font-semibold mb-2">${t('seatN', i+1)}</div>
         <button class="btn btn-green w-full" id="join-${i}">${t('joinSeat')}</button>`;
@@ -771,6 +823,9 @@ function renderAll(){
   if (S.winner){
     document.getElementById("winnerName").textContent = S.winner.name;
     document.getElementById("winnerWrap").classList.remove("hidden");
+    // Host 才显示“再来一局”
+    const ng = document.getElementById('btnNewGame');
+    if (ng) ng.classList.toggle('hidden', !isHost);
     launchConfetti();
   }
   enterGameUI();
@@ -992,6 +1047,13 @@ document.getElementById("seatMax").addEventListener("change", applySettingsLocal
 document.getElementById("startHand").addEventListener("change", applySettingsLocal);
 document.getElementById("btnStart").onclick = startLocal;
 document.getElementById("btnHostRestart").onclick = restartLocal;
+
+/* ★ 新增：胜利弹窗“再来一局” */
+document.getElementById("btnNewGame").onclick = async ()=>{
+  document.getElementById("winnerWrap").classList.add("hidden");
+  if (isHost) { await hostNewGame(); }
+  else { await sendAction({ type:'HOST_NEW_GAME' }); } // 安全兜底
+};
 
 document.getElementById("btnPlay").onclick = async ()=>{
   if (selectedIndices.size===0) return toast(t('needOne'));
