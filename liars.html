@@ -142,7 +142,9 @@
         <div class="glass-strong rounded-2xl p-6 max-w-md w-full text-center">
           <h3 class="text-xl font-bold mb-2" id="winTitle">胜利！</h3>
           <p class="mb-4"><span id="winnerName" class="font-semibold"></span> <span id="winText">获得胜利 🎉</span></p>
-          <div class="flex items-center justify-center gap-2">
+          <div class="flex items-center justify-center gap-2 flex-wrap">
+            <!-- 新增：Host 专用“再来一局”按钮 -->
+            <button id="btnNewGame" class="btn btn-prim hidden">再来一局</button>
             <button id="btnBackLobby" class="btn">返回大厅</button>
             <a id="btnBackHome" href="index.html" class="btn btn-green">返回主网页</a>
           </div>
@@ -160,3 +162,4 @@
   <script src="js/main.js"></script>
 </body>
 </html>
+
