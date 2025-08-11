@@ -111,6 +111,23 @@ async function hostApplySettings(){
   await writeLobby();
 }
 
+
+async function hostLeaveSeatAction(_uid, seatIdx){
+  // 只允许在开局前退座（避免对正在进行的局造成混乱）
+  if ((H.roundNo||0) > 0) return;
+
+  // 定位座位
+  let idx = typeof seatIdx === 'number' ? seatIdx : H.players.findIndex(p=>p && p.uid===_uid);
+  if (idx < 0) return;
+
+  // Host（通常在 seat 0）不可退座
+  if (H.players[idx] && H.players[idx].uid === (H.players[0]?.uid)) return;
+
+  H.players[idx] = null;
+  await writeLobby();
+}
+
+
 async function hostStart(){
   const seated = H.players.filter(p=>p && p.alive);
   if (seated.length < 2){ toast(t('need2p')); return; }
@@ -250,6 +267,9 @@ function attachHostActionListener(){
           case 'HOST_START':   if (a.uid===uid) await hostStart(); break;
           case 'HOST_RESTART': if (a.uid===uid) await hostRestart(); break;
           case 'BACK_TO_LOBBY': await hostBackToLobbyReset(); break;
+          case 'LEAVE_SEAT': await hostLeaveSeatAction(a.uid, a.seat); break;
+          case 'HOST_NEW_GAME':   if (a.uid===uid) await hostNewGame(); break;
+
         }
       } finally {
         await doc.ref.update({ processed:true, processedBy: uid });
@@ -265,7 +285,7 @@ function attachCommonListeners(){
   if (unsubLobby) unsubLobby();
   unsubLobby = lobby.onSnapshot((doc)=>{
     if (!doc.exists) return; L = doc.data();
-    window.App.ui.renderLobbyLocal(L, isHost);
+    window.App.ui.renderLobbyLocal(L, isHost, uid);
     document.getElementById("roomShow").textContent = ROOM_ID;
     document.getElementById("roleShow").textContent = isHost ? t('roleHost') : t('roleGuest');
     document.getElementById("hostPanel").classList.toggle("hidden", !isHost);
@@ -324,4 +344,5 @@ window.App.logic = {
   sessionRefs: ()=>({ ROOM_ID, isHost, uid, me }),
   getSelected: ()=>selectedIndices,
 };
+
 
