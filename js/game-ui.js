@@ -71,26 +71,55 @@ function showRollBanner(playerUid, name, value, died){
 }
 
 /* ------- 渲染大厅 ------- */
-function renderLobbyLocal(lobby, isHost){
+function renderLobbyLocal(lobby, isHost, myUid){
   applyStaticTexts();
-  const seats = document.getElementById("seats"); seats.innerHTML="";
+  const seats = document.getElementById("seats"); 
+  seats.innerHTML = "";
   const seatsN = lobby.settings.seats;
-  for(let i=0;i<seatsN;i++){
-    const cell = document.createElement('div'); cell.className = "rounded-xl p-3 border border-[#334155] bg-[#0b142a]";
+  const hostUid = lobby.hostUid; // 用于屏蔽 Host 退座
+
+  for (let i = 0; i < seatsN; i++) {
+    const cell = document.createElement('div'); 
+    cell.className = "rounded-xl p-3 border border-[#334155] bg-[#0b142a]";
     const occupant = lobby.seats[i];
-    if (occupant){
-      cell.innerHTML = `<div class="font-semibold mb-1">${t('seatN', i+1)}</div>
+
+    if (occupant) {
+      // 是否显示“退出座位”按钮：自己占的且不是 Host 的座位
+      const canLeave = occupant.uid === myUid && occupant.uid !== hostUid;
+
+      cell.innerHTML = `
+        <div class="font-semibold mb-1">${t('seatN', i + 1)}</div>
         <div class="opacity-90">${occupant.name}</div>
-        <div class="text-sm opacity-70 mt-1">${occupant.alive? t('seated') : t('eliminated')}</div>`;
+        <div class="text-sm opacity-70 mt-1">
+          ${occupant.alive ? t('seated') : t('eliminated')}
+        </div>
+        ${canLeave ? `<button class="btn btn-danger w-full mt-2">${t('leaveSeat')}</button>` : ``}
+      `;
+
+      if (canLeave) {
+        const btn = cell.querySelector('button');
+        btn.onclick = () => 
+          window.App.logic
+            .sendAction({ type:'LEAVE_SEAT', seat:i })
+            .catch(()=>{});
+      }
     } else {
-      cell.innerHTML = `<div class="font-semibold mb-2">${t('seatN', i+1)}</div>
-        <button class="btn btn-green w-full">${t('joinSeat')}</button>`;
+      // 空位：显示“加入此座位”
+      cell.innerHTML = `
+        <div class="font-semibold mb-2">${t('seatN', i + 1)}</div>
+        <button class="btn btn-green w-full">${t('joinSeat')}</button>
+      `;
       const btn = cell.querySelector('button');
-      btn.onclick = ()=> window.App.logic.sendAction({ type:'TAKE_SEAT', seat:i }).catch(()=>{});
+      btn.onclick = () => 
+        window.App.logic
+          .sendAction({ type:'TAKE_SEAT', seat:i })
+          .catch(()=>{});
     }
+
     seats.appendChild(cell);
   }
 }
+
 
 /* ------- 渲染游戏/桌面 ------- */
 function renderAll(S, ctx){
@@ -102,7 +131,13 @@ function renderAll(S, ctx){
     document.getElementById("winnerName").textContent = S.winner.name;
     document.getElementById("winnerWrap").classList.remove("hidden");
     launchConfetti();
+
+    // ★ 新增：只有 Host 才显示“再来一局”按钮
+    const isHost = window.App.logic.sessionRefs().isHost;
+    const ngBtn = document.getElementById('btnNewGame');
+    if (ngBtn) ngBtn.classList.toggle('hidden', !isHost);
   }
+
   enterGameUI();
   document.getElementById("roundNo").textContent = S.roundNo||1;
   document.getElementById("targetRank").textContent = S.target||"-";
@@ -186,6 +221,7 @@ function renderAll(S, ctx){
   renderHandOnly(myHand, selectedIndices);
 }
 
+
 function renderHandOnly(myHand, selectedIndices){
   const handDiv = document.getElementById("hand"); if (!handDiv) return;
   handDiv.innerHTML = "";
@@ -227,3 +263,4 @@ window.App.ui = {
   showSmoke, showDice, launchConfetti,
   onEvent, setLastRevealLocal,
 };
+
