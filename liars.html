@@ -110,7 +110,8 @@
       </div>
       <div class="flex items-center gap-2">
         <span id="authBadge" class="badge">Auth: —</span>
-        <button id="btnResetAll" class="btn">刷新页面</button>
+        <!-- 刷新按钮：仅 Host 可见（运行时控制） -->
+        <button id="btnResetAll" class="btn hidden">刷新页面</button>
       </div>
     </div>
   </header>
@@ -234,7 +235,7 @@
 
 <script>
 /* ===================== i18n ===================== */
-let LANG = 'zh';
+let LANG = localStorage.getItem('lb_lang') || 'zh';
 const i18n = {
   zh:{back:"返回主网页", title:"Liar’s Bar", refresh:"刷新页面",
     connectTitle:"进入或创建房间", nick:"你的昵称", room:"房间号（加入时填写）",
@@ -252,8 +253,7 @@ const i18n = {
     handCount:c=>`手牌 ${c}`, diceList:r=>`骰：${r}`, playing:"出牌中", unknown:"未知",
     toastTurn:"你的回合", needOne:"请选择至少 1 张", need2p:"至少需要 2 名玩家入座",
     notEnough:"牌不够，请调小起始手牌或座位数",
-    winner:"胜利！", winText:"获得胜利 🎉",
-    newGame:"再来一局",
+    winner:"胜利！", winText:"获得胜利 🎉", newGame:"再来一局",
     claim:(who,target,count)=>`${who}：宣称 ${target} × ${count}`,
     rollBanner:(name,v,dead)=> dead ? `${name} 掷出 ${v} —— 淘汰！` : `${name} 掷出 ${v} —— 安全`,
     phNick:"例如：Lucas", phRoom:"例如：ABCD1",
@@ -274,8 +274,7 @@ const i18n = {
     handCount:c=>`Cards ${c}`, diceList:r=>`Dice: ${r}`, playing:"Playing", unknown:"Unknown",
     toastTurn:"Your turn", needOne:"Select at least 1", need2p:"Need at least 2 players",
     notEnough:"Not enough cards, reduce seats or start hand",
-    winner:"Victory!", winText:"wins 🎉",
-    newGame:"New Game",
+    winner:"Victory!", winText:"wins 🎉", newGame:"New Game",
     claim:(who,target,count)=>`${who}: claims ${target} × ${count}`,
     rollBanner:(name,v,dead)=> dead ? `${name} rolled ${v} — DEAD!` : `${name} rolled ${v} — safe`,
     phNick:"e.g., Lucas", phRoom:"e.g., ABCD1",
@@ -344,6 +343,48 @@ async function ensureAuth(){
   }
 }
 
+/* ===================== 会话保存 / 恢复 ===================== */
+function saveSession(roomId, name){
+  localStorage.setItem('lb_session', JSON.stringify({roomId, name, t:Date.now()}));
+  localStorage.setItem('lb_lang', LANG);
+}
+async function tryAutoResume(){
+  const savedStr = localStorage.getItem('lb_session');
+  if (!savedStr) return false;
+  const saved = JSON.parse(savedStr||'{}');
+  if (!saved.roomId) return false;
+  ROOM_ID = saved.roomId; me.name = saved.name || 'Player';
+  // 预判角色，控制 UI
+  const lobbyDoc = await roomRefs(ROOM_ID).lobby.get().catch(()=>null);
+  if (!lobbyDoc || !lobbyDoc.exists) return false;
+
+  const hUid = lobbyDoc.data().hostUid;
+  isHost = (auth.currentUser && auth.currentUser.uid === hUid);
+
+  // Host 需要能继续处理动作：构造最小 H（从 lobby/state 复原必要字段）
+  if (isHost){
+    const stDoc = await roomRefs(ROOM_ID).state.get().catch(()=>null);
+    const st = (stDoc && stDoc.exists) ? stDoc.data() : {};
+    H = {
+      settings: lobbyDoc.data().settings || { seats:4, startHand:5 },
+      players: (lobbyDoc.data().seats||[]).map(s=> s? { uid:s.uid, name:s.name, alive:s.alive!==false, rolls:s.rolls||[], rollMap:{}, hand:[] } : null),
+      roundNo: st.roundNo||0, target: st.target||null, turn: st.turn||0,
+      pot:[], awaitingReveal: st.awaitingReveal||false, challengerId:null, revealing:false
+    };
+    attachCommonListeners();
+    attachHostActionListener();
+  }else{
+    attachCommonListeners();
+  }
+  enterLobbyUI();
+  document.getElementById("roomShow").textContent = ROOM_ID;
+  document.getElementById("roleShow").textContent = isHost ? t('roleHost') : t('roleGuest');
+  document.getElementById("hostPanel").classList.toggle('hidden', !isHost);
+  // 刷新按钮只给 Host
+  document.getElementById("btnResetAll").classList.toggle('hidden', !isHost);
+  return true;
+}
+
 /* ===================== 全局与工具 ===================== */
 let ROOM_ID = null;
 let isHost = false;
@@ -385,7 +426,7 @@ async function hostInit(roomId, name){
     players: new Array(4).fill(null),
     roundNo:0, target:null, turn:0,
     pot:[], awaitingReveal:false, challengerId:null,
-    revealing:false   // ★ 互斥锁：翻牌/掷骰期间为 true
+    revealing:false   // 互斥锁
   };
   H.players[0] = { uid, name, alive:true, rolls:[], rollMap:{}, hand:[] };
 
@@ -397,23 +438,27 @@ async function hostInit(roomId, name){
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
 
+  saveSession(ROOM_ID, name);
   attachCommonListeners();
   attachHostActionListener();
   enterLobbyUI();
   document.getElementById("roomShow").textContent = ROOM_ID;
   document.getElementById("roleShow").textContent = t('roleHost');
   document.getElementById("hostPanel").classList.remove('hidden');
+  document.getElementById("btnResetAll").classList.remove('hidden'); // Host 专属
 }
 
 async function guestJoin(roomId, name){
   isHost = false; ROOM_ID = roomId; me.name = name;
   const user = await ensureAuth(); uid = user.uid; me.uid = uid;
 
+  saveSession(ROOM_ID, name);
   attachCommonListeners();
   enterLobbyUI();
   document.getElementById("roomShow").textContent = ROOM_ID;
   document.getElementById("roleShow").textContent = t('roleGuest');
   document.getElementById("hostPanel").classList.add('hidden');
+  document.getElementById("btnResetAll").classList.add('hidden'); // Guest 不显示
 }
 
 /* ===================== Host 写入 ===================== */
@@ -576,10 +621,10 @@ async function hostLiar(_uid){
 const DICE_TURNS = 14, DICE_BASE = 70, DICE_INC = 35, DICE_HOLD = 1000;
 function diceAnimMs(){ return (DICE_TURNS+1)*DICE_BASE + (DICE_TURNS*(DICE_TURNS+1)/2)*DICE_INC + DICE_HOLD; }
 
-/* ★ 防重复触发的翻牌流程 */
+/* 防重复触发的翻牌流程 */
 async function hostReveal(){
-  if (!H.awaitingReveal || H.pot.length===0 || H.revealing) return; // 已在流程中就忽略
-  H.revealing = true;  // 上锁
+  if (!H.awaitingReveal || H.pot.length===0 || H.revealing) return;
+  H.revealing = true;
 
   const last = H.pot[H.pot.length-1];
   lastReveal = last.cards.map(c=>({...c}));
@@ -608,15 +653,15 @@ async function hostReveal(){
       const startIndex = (winnerSeat>=0 && H.players[winnerSeat]?.alive) ? winnerSeat : nextAliveFrom(H, loserSeat);
       setTimeout(async ()=>{
         await redealFrom(startIndex);
-        H.revealing = false; // 解锁
+        H.revealing = false;
       }, 1200);
     }, diceAnimMs());
   }, 3000);
 }
 
 async function redealFrom(startIndex){
-  H.awaitingReveal = false; // 保底清理
-  H.revealing = false;      // 保底清理
+  H.awaitingReveal = false;
+  H.revealing = false;
   const alive = H.players.filter(p=>p && p.alive);
   if (alive.length<=1){ await writeState(true); return; }
 
@@ -699,10 +744,16 @@ function attachCommonListeners(){
   unsubLobby = lobby.onSnapshot((doc)=>{
     if (!doc.exists) return;
     L = doc.data();
+
+    // 根据 lobby 的 hostUid 实时判断我是不是 Host（控制UI: hostPanel / 刷新按钮）
+    const imHost = (L.hostUid === (auth.currentUser && auth.currentUser.uid));
+    isHost = imHost;
+    document.getElementById("hostPanel").classList.toggle("hidden", !isHost);
+    document.getElementById("btnResetAll").classList.toggle("hidden", !isHost);
+
     renderLobbyLocal(L);
     document.getElementById("roomShow").textContent = ROOM_ID;
     document.getElementById("roleShow").textContent = isHost ? t('roleHost') : t('roleGuest');
-    document.getElementById("hostPanel").classList.toggle("hidden", !isHost);
     const btn = document.getElementById("btnStart"); if (btn && isHost) btn.disabled = !L.canStart;
   }, err=>{
     console.error('Lobby listen error:', err);
@@ -818,11 +869,11 @@ function renderLobbyLocal(lobby){
   }
 }
 
+/* 只显示“上家出”的翻牌；并确保出牌者没有 liar 选项 */
 function renderAll(){
   if (!S) return;
   if (!S.awaitingReveal) lastReveal = null;
 
-  // 没有 winner 时强制隐藏弹窗；有 winner 时只 Host 显示“再来一局”
   const winnerWrap = document.getElementById("winnerWrap");
   if (S.winner){
     document.getElementById("winnerName").textContent = S.winner.name;
@@ -907,14 +958,20 @@ function renderAll(){
   if (S.lastClaim) potFlashOnce();
 
   const yourTurnTag = document.getElementById("yourTurnTag");
-  const amIturn = (currentPlayer && currentPlayer.uid===uid && currentPlayer.alive);
+  const amIturn = (currentPlayer && currentPlayer.uid===auth.currentUser.uid && currentPlayer.alive);
+
+  // liar 规则：只能轮到你时、桌上有牌、没在翻牌、且你不是上一次出牌的人
+  const liarBtn = document.getElementById("btnLiar");
+  const canLiar = amIturn && !S.awaitingReveal && S.pot.length>0 && (!S.lastClaim || S.lastClaim.by !== auth.currentUser.uid);
+  liarBtn.disabled = !canLiar;
+  liarBtn.classList.toggle('hidden', !canLiar);
+
   document.getElementById("btnReveal").classList.toggle("hidden", !S.awaitingReveal);
   document.getElementById("btnPlay").disabled = S.awaitingReveal || !amIturn || (myHand.length===0);
-  document.getElementById("btnLiar").disabled = S.awaitingReveal || S.pot.length===0 || !amIturn;
   yourTurnTag.classList.toggle("hidden", !amIturn);
 
   const nowTurnUid = currentPlayer ? currentPlayer.uid : null;
-  if (nowTurnUid === uid && lastTurnUid !== uid){ toast(t('toastTurn')); }
+  if (nowTurnUid === auth.currentUser.uid && lastTurnUid !== auth.currentUser.uid){ toast(t('toastTurn')); }
   lastTurnUid = nowTurnUid;
 
   renderHandOnly();
@@ -1085,7 +1142,7 @@ document.getElementById("btnLiar").onclick = async ()=>{
   await sendAction({ type:'LIAR' });
 };
 
-/* ★ 点“翻开判定”后按钮禁用 5 秒，避免连点 */
+/* 点“翻开判定”后按钮禁用 5 秒，避免连点 */
 document.getElementById("btnReveal").onclick = async ()=>{
   const br = document.getElementById("btnReveal");
   br.disabled = true;
@@ -1100,14 +1157,17 @@ document.getElementById("btnBackLobby").onclick = async ()=>{
 
 document.getElementById("langSel").addEventListener("change", (e)=>{
   LANG = e.target.value;
+  localStorage.setItem('lb_lang', LANG);
   applyStaticTexts();
   if (L) renderLobbyLocal(L);
   if (S) renderAll();
 });
 
-// 页面加载时先尝试登录
-ensureAuth().catch(()=>{});
-applyStaticTexts();
+// 页面加载：登录后尝试恢复会话；恢复失败就停在创建/加入页
+ensureAuth()
+  .then(()=> tryAutoResume())
+  .catch(()=>{})
+  .finally(()=> applyStaticTexts());
 </script>
 </body>
 </html>
