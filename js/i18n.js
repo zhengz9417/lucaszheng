@@ -66,9 +66,12 @@ function applyStaticTexts(){
   set('winTitle', t('winner')); set('winText', t('winText')); set('btnBackLobby', t('backLobby')); set('btnBackHome', t('backHome'));
   const nick=document.getElementById('nick'); if(nick) nick.placeholder=t('phNick');
   const room=document.getElementById('roomInput'); if(room) room.placeholder=t('phRoom');
+  const btnNG = document.getElementById('btnNewGame');
+  if (btnNG) btnNG.textContent = t('newGame');
 }
 window.App.LANG = () => LANG;
 window.App.setLANG = (l)=>{ LANG=l; applyStaticTexts(); };
 window.App.t = t;
 window.App.applyStaticTexts = applyStaticTexts;
+
 
