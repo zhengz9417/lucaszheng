@@ -18,6 +18,8 @@ const i18n = {
     handCount:c=>`手牌 ${c}`, diceList:r=>`骰：${r}`, playing:"出牌中", unknown:"未知",
     toastTurn:"你的回合", needOne:"请选择至少 1 张", need2p:"至少需要 2 名玩家入座",
     notEnough:"牌不够，请调小起始手牌或座位数",
+    newGame:"再来一局",
+    leaveSeat:"退出座位",
     winner:"胜利！", winText:"获得胜利 🎉", backLobby:"返回大厅", backHome:"返回主网页",
     claim:(who,target,count)=>`${who}：宣称 ${target} × ${count}`,
     rollBanner:(name,v,dead)=> dead ? `${name} 掷出 ${v} —— 淘汰！` : `${name} 掷出 ${v} —— 安全`,
@@ -35,6 +37,8 @@ const i18n = {
     round:"Round:", target:"Target:", current:"Current:", yourTurn:"Your turn",
     table:"Table", recent:(name,c)=>`Recent: ${name} × ${c}`, myHand:"Your hand (pick any cards)", actions:"Actions",
     play:c=>`Play (${c})`, liar:"liar", reveal:"Reveal",
+    newGame:"New Game",
+    leaveSeat:"Leave seat",
     revealHint:"Only flip the last batch; resolve in 3s, then dice anim. Roll 6 = death, or 2nd time same pip = death.",
     handCount:c=>`Cards ${c}`, diceList:r=>`Dice: ${r}`, playing:"Playing", unknown:"Unknown",
     toastTurn:"Your turn", needOne:"Select at least 1", need2p:"Need at least 2 players",
@@ -67,3 +71,4 @@ window.App.LANG = () => LANG;
 window.App.setLANG = (l)=>{ LANG=l; applyStaticTexts(); };
 window.App.t = t;
 window.App.applyStaticTexts = applyStaticTexts;
+
