@@ -134,11 +134,11 @@
       <div class="grid md:grid-cols-2 gap-4">
         <div>
           <label class="block text-sm opacity-90 mb-1" id="lblNick">你的昵称</label>
-          <input id="nick" class="w-full rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text-[15px] outline-none focus:ring-2 focus:ring-sky-400/40" placeholder="例如：Lucas" />
+          <input id="nick" class="w-full rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text-[15px] placeholder-gray-400 outline-none focus:ring-2 focus:ring-sky-400/40" placeholder="例如：Lucas" />
         </div>
         <div>
           <label class="block text-sm opacity-90 mb-1" id="lblRoom">房间号（加入时填写）</label>
-          <input id="roomInput" class="w-full rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text-[15px] outline-none focus:ring-2 focus:ring-sky-400/40" placeholder="例如：ABCD1" />
+          <input id="roomInput" class="w-full rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text-[15px] placeholder-gray-400 outline-none focus:ring-2 focus:ring-sky-400/40" placeholder="例如：ABCD1" />
         </div>
       </div>
       <div class="mt-5 flex flex-wrap gap-3">
@@ -224,7 +224,6 @@
           <h3 class="text-xl font-bold mb-2" id="winTitle">胜利！</h3>
           <p class="mb-4"><span id="winnerName" class="font-semibold"></span> <span id="winText">获得胜利 🎉</span></p>
           <div class="flex items-center justify-center gap-2 flex-wrap">
-            <!-- Host 专用“再来一局”；仅在弹窗出现且是 Host 时显示 -->
             <button id="btnNewGame" class="btn btn-prim hidden">再来一局</button>
             <button id="btnBackLobby" class="btn">返回大厅</button>
           </div>
@@ -386,6 +385,7 @@ async function hostInit(roomId, name){
     players: new Array(4).fill(null),
     roundNo:0, target:null, turn:0,
     pot:[], awaitingReveal:false, challengerId:null,
+    revealing:false   // ★ 互斥锁：翻牌/掷骰期间为 true
   };
   H.players[0] = { uid, name, alive:true, rolls:[], rollMap:{}, hand:[] };
 
@@ -492,7 +492,7 @@ async function hostStart(){
   H.roundNo = (H.roundNo||0) + 1;
   H.target = TARGETS[rnd(TARGETS.length)];
   H.turn = H.players.findIndex(p=>p && p.alive);
-  H.pot = []; H.awaitingReveal=false; H.challengerId=null;
+  H.pot = []; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
 
   await sendHands();
   await writeState();
@@ -500,7 +500,7 @@ async function hostStart(){
 }
 
 async function hostRestart(){
-  H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null;
+  H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
   H.players.forEach(p=>{ if(p){ p.alive=true; p.rolls=[]; p.rollMap={}; p.hand=[]; }});
   await sendHands();
   await writeLobby();
@@ -524,6 +524,7 @@ async function hostNewGame(){
   H.pot     = [];
   H.awaitingReveal = false;
   H.challengerId   = null;
+  H.revealing      = false;
 
   await sendHands(); await writeLobby(); await writeState();
   showSmoke();
@@ -567,6 +568,7 @@ async function handsSetOne(uidX, hand){ const { hands } = roomRefs(ROOM_ID); awa
 async function hostLiar(_uid){
   H.challengerId = _uid;
   H.awaitingReveal = true;
+  H.revealing = false;   // 进入质疑时确保未锁
   lastReveal = null;
   await writeState();
 }
@@ -574,8 +576,11 @@ async function hostLiar(_uid){
 const DICE_TURNS = 14, DICE_BASE = 70, DICE_INC = 35, DICE_HOLD = 1000;
 function diceAnimMs(){ return (DICE_TURNS+1)*DICE_BASE + (DICE_TURNS*(DICE_TURNS+1)/2)*DICE_INC + DICE_HOLD; }
 
+/* ★ 防重复触发的翻牌流程 */
 async function hostReveal(){
-  if (!H.awaitingReveal || H.pot.length===0) return;
+  if (!H.awaitingReveal || H.pot.length===0 || H.revealing) return; // 已在流程中就忽略
+  H.revealing = true;  // 上锁
+
   const last = H.pot[H.pot.length-1];
   lastReveal = last.cards.map(c=>({...c}));
   await emitEvent("REVEAL_VIEW", { cards:last.cards.map(c=>({...c})) });
@@ -586,7 +591,7 @@ async function hostReveal(){
     const winnerId = truthful ? last.by : H.challengerId;
     const loserSeat  = H.players.findIndex(p=>p && p.uid===loserId);
     const winnerSeat = H.players.findIndex(p=>p && p.uid===winnerId);
-    if (loserSeat<0) return;
+    if (loserSeat<0) { H.revealing=false; return; }
 
     const P = H.players[loserSeat];
     const roll = 1 + rnd(6);
@@ -595,18 +600,23 @@ async function hostReveal(){
 
     setTimeout(async ()=>{
       P.rolls.push(roll); P.rollMap[roll]=(P.rollMap[roll]||0)+1;
-      let dieNow = (roll===6) || (P.rollMap[roll]>=2);
+      const dieNow = (roll===6) || (P.rollMap[roll]>=2);
       if (dieNow){ P.alive=false; P.hand=[]; await handsSetOne(P.uid, P.hand); }
 
       await emitEvent("DICE_RESULT", { who:P.name, uid:P.uid, value:roll, died:dieNow });
 
       const startIndex = (winnerSeat>=0 && H.players[winnerSeat]?.alive) ? winnerSeat : nextAliveFrom(H, loserSeat);
-      setTimeout(async ()=>{ await redealFrom(startIndex); }, 1200);
+      setTimeout(async ()=>{
+        await redealFrom(startIndex);
+        H.revealing = false; // 解锁
+      }, 1200);
     }, diceAnimMs());
   }, 3000);
 }
 
 async function redealFrom(startIndex){
+  H.awaitingReveal = false; // 保底清理
+  H.revealing = false;      // 保底清理
   const alive = H.players.filter(p=>p && p.alive);
   if (alive.length<=1){ await writeState(true); return; }
 
@@ -632,7 +642,7 @@ async function redealFrom(startIndex){
 }
 
 async function hostBackToLobbyReset(){
-  H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null;
+  H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
   H.target=null; H.turn=0;
   H.players.forEach(p=>{ if(p){ p.alive=true; p.rolls=[]; p.rollMap={}; p.hand=[]; }});
   await sendHands();
@@ -812,7 +822,7 @@ function renderAll(){
   if (!S) return;
   if (!S.awaitingReveal) lastReveal = null;
 
-  // ★ 关键：没有 winner 就确保关闭弹窗（Host 再来一局后 guest 不会被遮挡）
+  // 没有 winner 时强制隐藏弹窗；有 winner 时只 Host 显示“再来一局”
   const winnerWrap = document.getElementById("winnerWrap");
   if (S.winner){
     document.getElementById("winnerName").textContent = S.winner.name;
@@ -1075,7 +1085,14 @@ document.getElementById("btnLiar").onclick = async ()=>{
   await sendAction({ type:'LIAR' });
 };
 
-document.getElementById("btnReveal").onclick = async ()=>{ await sendAction({ type:'REVEAL' }); };
+/* ★ 点“翻开判定”后按钮禁用 5 秒，避免连点 */
+document.getElementById("btnReveal").onclick = async ()=>{
+  const br = document.getElementById("btnReveal");
+  br.disabled = true;
+  try { await sendAction({ type:'REVEAL' }); }
+  finally { setTimeout(()=>{ br.disabled = false; }, 5000); }
+};
+
 document.getElementById("btnBackLobby").onclick = async ()=>{
   document.getElementById("winnerWrap").classList.add("hidden");
   await sendAction({ type:'BACK_TO_LOBBY' });
