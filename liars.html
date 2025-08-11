@@ -42,8 +42,7 @@
     .ping::after{content:"";position:absolute;inset:-4px;border-radius:999px;border:2px solid var(--okay);opacity:.4;animation:ping 1.2s cubic-bezier(0,0,.2,1) infinite}
     @keyframes ping{0%{transform:scale(1);opacity:.4} 100%{transform:scale(1.5);opacity:0}}
 
-    .felt{
-      border:1px solid #335244; border-radius:14px; padding:16px;
+    .felt{ border:1px solid #335244; border-radius:14px; padding:16px;
       background:
         radial-gradient(800px 300px at -20% -30%, rgba(255,255,255,.06), transparent 60%),
         radial-gradient(600px 280px at 120% -10%, rgba(255,255,255,.05), transparent 55%),
@@ -53,7 +52,7 @@
     .pot-flash{animation:potFlash .5s ease;}
     @keyframes potFlash{0%{box-shadow:0 0 0 0 rgba(125,211,252,.0)} 60%{box-shadow:0 0 0 8px rgba(125,211,252,.15)} 100%{box-shadow:0 0 0 0 rgba(125,211,252,.0)}}
 
-    .card{ position:relative; width:62px; height:86px; margin:4px; display:inline-block; perspective: 700px; }
+    .card{ position:relative; width:62px; height:86px; margin:4px; display:inline-block; perspective:700px; }
     .card .inner{ position:absolute; inset:0; border-radius:12px; transform-style:preserve-3d; transition: transform .6s ease; transform: rotateY(0deg); }
     .card .front, .card .back{
       position:absolute; inset:0; border-radius:12px; backface-visibility:hidden;
@@ -78,7 +77,6 @@
 
     .burst{animation:burst .18s ease both;}
     @keyframes burst{ 0%{transform:translateY(-2px) scale(1.02)} 100%{transform:translateY(-8px) scale(1.08)} }
-
     .shake{animation:shake .38s cubic-bezier(.36,.07,.19,.97) both;}
     @keyframes shake{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(3px)}30%,50%,70%{transform:translateX(-5px)}40%,60%{transform:translateX(5px)}}
 
@@ -98,7 +96,6 @@
 
     .confetti{position:fixed; top:-10px; width:8px; height:14px; opacity:.9; z-index:60; background:linear-gradient(180deg,#fff,#ddd); will-change:transform; animation:fall linear forwards;}
     @keyframes fall{to{transform:translate3d(var(--tx),110vh,0) rotate(var(--rot))}}
-
     .roll-banner{margin-top:.5rem; font-size:.85rem; border:1px solid #334155; background:#0b142a; padding:.35rem .6rem; border-radius:.6rem}
   </style>
 </head>
@@ -113,7 +110,10 @@
         </a>
         <h1 class="text-xl md:text-2xl font-bold neon-title" id="hdrTitle">Liar’s Bar</h1>
       </div>
-      <button id="btnResetAll" class="btn">刷新页面</button>
+      <div class="flex items-center gap-2">
+        <span id="authBadge" class="badge">Auth: —</span>
+        <button id="btnResetAll" class="btn">刷新页面</button>
+      </div>
     </div>
   </header>
 
@@ -324,10 +324,25 @@ const app = firebase.initializeApp(window.firebaseConfig);
 const auth = firebase.auth();
 const db   = firebase.firestore();
 
+function setAuthBadge(txt, ok=false){
+  const b = document.getElementById('authBadge');
+  b.textContent = 'Auth: ' + txt;
+  b.style.borderColor = ok ? '#34d39980' : '#fb718580';
+  b.style.color = ok ? '#34d399' : '#fb7185';
+}
+
 async function ensureAuth(){
-  if (auth.currentUser) return auth.currentUser;
-  await auth.signInAnonymously();
-  return auth.currentUser;
+  if (auth.currentUser){ setAuthBadge(auth.currentUser.uid.slice(0,8)+'…', true); return auth.currentUser; }
+  try{
+    const u = await auth.signInAnonymously();
+    setAuthBadge(u.user.uid.slice(0,8)+'…', true);
+    return u.user;
+  }catch(e){
+    console.error('Auth failed:', e);
+    setAuthBadge('ERR', false);
+    alert('登录失败：' + (e && e.message ? e.message : e));
+    throw e;
+  }
 }
 
 /* ===================== 全局与工具 ===================== */
@@ -336,7 +351,7 @@ let isHost = false;
 let uid = null;
 let me = { uid:null, name:"" };
 
-function toast(msg){ const tdiv=document.getElementById('toast'); tdiv.firstElementChild.textContent=msg; tdiv.classList.remove('hidden'); setTimeout(()=>tdiv.classList.add('hidden'),1600); }
+function toast(msg){ const tdiv=document.getElementById('toast'); tdiv.firstElementChild.textContent=msg; tdiv.classList.remove('hidden'); setTimeout(()=>tdiv.classList.add('hidden'),1800); }
 
 const TARGETS = ["A","Q","K"];
 const rnd = n => Math.floor(Math.random()*n);
@@ -593,13 +608,12 @@ async function hostBackToLobbyReset(){
   enterLobbyUI();
 }
 
-/* ===================== Host 监听 actions（已修复） ===================== */
+/* ===================== Host 监听 actions（避免索引） ===================== */
 let unsubActions = null;
 function attachHostActionListener(){
   const { actions } = roomRefs(ROOM_ID);
   if (unsubActions) unsubActions();
 
-  // 改成只按时间监听最后100条，自己过滤 processed，避免索引要求
   unsubActions = actions.orderBy('ts').limitToLast(100).onSnapshot(async (qs)=>{
     for (const ch of qs.docChanges()){
       if (ch.type !== 'added') continue;
@@ -621,13 +635,16 @@ function attachHostActionListener(){
         await doc.ref.update({ processed:true, processedBy: uid });
       }
     }
+  }, err=>{
+    console.error('Actions listener error:', err);
+    alert('Host 监听错误：' + (err && err.message ? err.message : err));
   });
 }
 
 /* ===================== 公用监听 ===================== */
 let unsubLobby=null, unsubState=null, unsubEvents=null, unsubMyHand=null;
 let L=null, S=null, myHand=[], myHandHash="";
-let lastReveal=null, lastTurnUid=null, prevRoundNo=null;
+let lastReveal=null, lastTurnUid=null;
 const processedEvents = new Set();
 
 function attachCommonListeners(){
@@ -642,6 +659,9 @@ function attachCommonListeners(){
     document.getElementById("roleShow").textContent = isHost ? t('roleHost') : t('roleGuest');
     document.getElementById("hostPanel").classList.toggle("hidden", !isHost);
     const btn = document.getElementById("btnStart"); if (btn && isHost) btn.disabled = !L.canStart;
+  }, err=>{
+    console.error('Lobby listen error:', err);
+    alert('读取大厅失败：' + (err && err.message ? err.message : err));
   });
 
   if (unsubState) unsubState();
@@ -649,6 +669,9 @@ function attachCommonListeners(){
     if (!doc.exists) return;
     S = doc.data();
     renderAll();
+  }, err=>{
+    console.error('State listen error:', err);
+    alert('读取游戏状态失败：' + (err && err.message ? err.message : err));
   });
 
   if (unsubEvents) unsubEvents();
@@ -673,6 +696,8 @@ function attachCommonListeners(){
           break;
       }
     });
+  }, err=>{
+    console.error('Events listen error:', err);
   });
 
   if (unsubMyHand) unsubMyHand();
@@ -685,20 +710,28 @@ function attachCommonListeners(){
       selectedIndices.clear();
       renderAll();
     }
+  }, err=>{
+    console.error('Hand listen error:', err);
   });
 }
 
-/* ===================== 事件发送（已确保登录） ===================== */
+/* ===================== 事件发送（确保登录 + 报错提示） ===================== */
 async function sendAction(data){
-  await ensureAuth();                 // ★ 确保匿名登录就绪
-  if (!uid) uid = auth.currentUser.uid;
-  const { actions } = roomRefs(ROOM_ID);
-  return actions.add({
-    ...data,
-    uid, name: me.name,
-    ts: firebase.firestore.FieldValue.serverTimestamp(),
-    processed:false
-  });
+  try{
+    await ensureAuth();                 // 确保匿名登录就绪
+    if (!uid) uid = auth.currentUser.uid;
+    const { actions } = roomRefs(ROOM_ID);
+    return await actions.add({
+      ...data,
+      uid, name: me.name,
+      ts: firebase.firestore.FieldValue.serverTimestamp(),
+      processed:false
+    });
+  }catch(e){
+    console.error('sendAction failed:', e);
+    alert('发送动作失败：' + (e && e.message ? e.message : e));
+    throw e;
+  }
 }
 
 /* ===================== UI：渲染 ===================== */
@@ -718,9 +751,14 @@ function renderLobbyLocal(lobby){
         <div class="text-sm opacity-70 mt-1">${occupant.alive? t('seated') : t('eliminated')}</div>`;
     } else {
       cell.innerHTML = `<div class="font-semibold mb-2">${t('seatN', i+1)}</div>
-        <button class="btn btn-green w-full">${t('joinSeat')}</button>`;
+        <button class="btn btn-green w-full" id="join-${i}">${t('joinSeat')}</button>`;
       const btn = cell.querySelector('button');
-      btn.onclick = ()=> sendAction({ type:'TAKE_SEAT', seat:i });
+      btn.onclick = async ()=>{
+        try{
+          await sendAction({ type:'TAKE_SEAT', seat:i });
+          toast(LANG==='zh' ? '已发送加入座位请求' : 'Seat request sent');
+        }catch(e){}
+      };
     }
     seats.appendChild(cell);
   }
@@ -992,7 +1030,8 @@ document.getElementById("langSel").addEventListener("change", (e)=>{
   if (S) renderAll();
 });
 
-// 初始应用一次语言文本
+// 页面加载时先尝试登录（让手机一进来就能看到 UID）
+ensureAuth().catch(()=>{});
 applyStaticTexts();
 </script>
 </body>
