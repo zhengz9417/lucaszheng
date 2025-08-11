@@ -85,8 +85,6 @@
       border:1px solid #93c5fd55; box-shadow:0 20px 60px rgba(59,130,246,.35), inset 0 3px 0 rgba(255,255,255,.06);
       display:grid; place-items:center; animation:pop .55s cubic-bezier(.2,.8,.2,1); }
     @keyframes pop{0%{transform:scale(.6);opacity:.0} 100%{transform:scale(1);opacity:1}}
-    .dice.spin { animation: wobble 300ms ease-in-out infinite; }
-    @keyframes wobble{0%{transform:translateY(0) rotate(0)}25%{transform:translateY(-2px) rotate(3deg)}50%{transform:translateY(0) rotate(0)}75%{transform:translateY(-1px) rotate(-3deg)}100%{transform:translateY(0) rotate(0)}}
 
     .smoke-layer{position:fixed; inset:0; pointer-events:none; z-index:40; overflow:hidden;}
     .puff{position:absolute; bottom:-60px; width:120px; height:120px; border-radius:50%;
@@ -226,10 +224,9 @@
           <h3 class="text-xl font-bold mb-2" id="winTitle">胜利！</h3>
           <p class="mb-4"><span id="winnerName" class="font-semibold"></span> <span id="winText">获得胜利 🎉</span></p>
           <div class="flex items-center justify-center gap-2 flex-wrap">
-            <!-- 新增：Host 专用“再来一局” -->
+            <!-- Host 专用“再来一局”；仅在弹窗出现且是 Host 时显示 -->
             <button id="btnNewGame" class="btn btn-prim hidden">再来一局</button>
             <button id="btnBackLobby" class="btn">返回大厅</button>
-            <a id="btnBackHome" href="index.html" class="btn btn-green">返回主网页</a>
           </div>
         </div>
       </div>
@@ -256,7 +253,7 @@ const i18n = {
     handCount:c=>`手牌 ${c}`, diceList:r=>`骰：${r}`, playing:"出牌中", unknown:"未知",
     toastTurn:"你的回合", needOne:"请选择至少 1 张", need2p:"至少需要 2 名玩家入座",
     notEnough:"牌不够，请调小起始手牌或座位数",
-    winner:"胜利！", winText:"获得胜利 🎉", backLobby:"返回大厅", backHome:"返回主网页",
+    winner:"胜利！", winText:"获得胜利 🎉",
     newGame:"再来一局",
     claim:(who,target,count)=>`${who}：宣称 ${target} × ${count}`,
     rollBanner:(name,v,dead)=> dead ? `${name} 掷出 ${v} —— 淘汰！` : `${name} 掷出 ${v} —— 安全`,
@@ -278,7 +275,7 @@ const i18n = {
     handCount:c=>`Cards ${c}`, diceList:r=>`Dice: ${r}`, playing:"Playing", unknown:"Unknown",
     toastTurn:"Your turn", needOne:"Select at least 1", need2p:"Need at least 2 players",
     notEnough:"Not enough cards, reduce seats or start hand",
-    winner:"Victory!", winText:"wins 🎉", backLobby:"Back to Lobby", backHome:"Back to Home",
+    winner:"Victory!", winText:"wins 🎉",
     newGame:"New Game",
     claim:(who,target,count)=>`${who}: claims ${target} × ${count}`,
     rollBanner:(name,v,dead)=> dead ? `${name} rolled ${v} — DEAD!` : `${name} rolled ${v} — safe`,
@@ -317,8 +314,6 @@ function applyStaticTexts(){
   document.getElementById('revealHint').textContent = t('revealHint');
   document.getElementById('winTitle').textContent = t('winner');
   document.getElementById('winText').textContent = t('winText');
-  document.getElementById('btnBackLobby').textContent = t('backLobby');
-  document.getElementById('btnBackHome').textContent = t('backHome');
   const ng = document.getElementById('btnNewGame'); if (ng) ng.textContent = t('newGame');
   document.getElementById('nick').placeholder = t('phNick');
   document.getElementById('roomInput').placeholder = t('phRoom');
@@ -512,12 +507,10 @@ async function hostRestart(){
   await writeState();
 }
 
-/* ★ 新增：再来一局（不回大厅，直接新一轮） */
+/* 再来一局（不回大厅，直接新一轮） */
 async function hostNewGame(){
-  // 全员复活、清空记录与手牌，保留座位
   H.players = H.players.map(p => p ? { ...p, alive:true, rolls:[], rollMap:{}, hand:[] } : p);
 
-  // 发新牌并开始第 1 回合
   const seated = H.players.filter(p=>p);
   const deck = makeCustomDeck();
   if (seated.length * H.settings.startHand > deck.length) {
@@ -536,14 +529,13 @@ async function hostNewGame(){
   showSmoke();
 }
 
-/* ★ 新增：退座（仅未开局时允许；Host 位不可退） */
+/* 退座（仅未开局时允许；Host 位不可退） */
 async function hostLeaveSeatAction(_uid, seatIdx){
-  if ((H.roundNo||0) > 0) return; // 开局后忽略
+  if ((H.roundNo||0) > 0) return;
   const hostUid = H.players[0]?.uid;
   let idx = typeof seatIdx === 'number' ? seatIdx : H.players.findIndex(p=>p && p.uid===_uid);
   if (idx < 0) return;
-  if (H.players[idx] && H.players[idx].uid === hostUid) return; // Host 不可退
-
+  if (H.players[idx] && H.players[idx].uid === hostUid) return;
   H.players[idx] = null;
   await writeLobby();
 }
@@ -664,14 +656,14 @@ function attachHostActionListener(){
       try{
         switch(a.type){
           case 'TAKE_SEAT':    await hostTakeSeat(a.seat, a.uid, a.name); break;
-          case 'LEAVE_SEAT':   await hostLeaveSeatAction(a.uid, a.seat); break;              // ★ 新增
+          case 'LEAVE_SEAT':   await hostLeaveSeatAction(a.uid, a.seat); break;
           case 'PLAY':         await hostPlay(a.uid, a.indices); break;
           case 'LIAR':         await hostLiar(a.uid); break;
           case 'REVEAL':       await hostReveal(); break;
           case 'HOST_APPLY':   if (a.uid===uid) await hostApplySettings(); break;
           case 'HOST_START':   if (a.uid===uid) await hostStart(); break;
           case 'HOST_RESTART': if (a.uid===uid) await hostRestart(); break;
-          case 'HOST_NEW_GAME':if (a.uid===uid) await hostNewGame(); break;                  // ★ 新增
+          case 'HOST_NEW_GAME':if (a.uid===uid) await hostNewGame(); break;
           case 'BACK_TO_LOBBY': await hostBackToLobbyReset(); break;
         }
       } finally {
@@ -758,7 +750,7 @@ function attachCommonListeners(){
   });
 }
 
-/* ===================== 事件发送 ===================== */
+/* ===================== 事件发送（确保登录 + 报错提示） ===================== */
 async function sendAction(data){
   try{
     await ensureAuth();
@@ -781,7 +773,7 @@ async function sendAction(data){
 function enterLobbyUI(){ document.getElementById("connect").classList.add("hidden"); document.getElementById("game").classList.add("hidden"); document.getElementById("lobby").classList.remove("hidden"); }
 function enterGameUI(){ document.getElementById("lobby").classList.add("hidden"); document.getElementById("game").classList.remove("hidden"); }
 
-/* ★ 更新：大厅允许“退出座位” */
+/* 大厅允许“退出座位” */
 function renderLobbyLocal(lobby){
   applyStaticTexts();
   const seats = document.getElementById("seats"); seats.innerHTML="";
@@ -792,7 +784,7 @@ function renderLobbyLocal(lobby){
     const cell = document.createElement('div'); cell.className = "rounded-xl p-3 border border-[#334155] bg-[#0b142a]";
     const occupant = lobby.seats[i];
     if (occupant){
-      const canLeave = (occupant.uid === uid) && (occupant.uid !== hostUid); // 自己且非 Host
+      const canLeave = (occupant.uid === uid) && (occupant.uid !== hostUid);
       cell.innerHTML = `<div class="font-semibold mb-1">${t('seatN', i+1)}</div>
         <div class="opacity-90">${occupant.name}</div>
         <div class="text-sm opacity-70 mt-1">${occupant.alive? t('seated') : t('eliminated')}</div>
@@ -820,14 +812,18 @@ function renderAll(){
   if (!S) return;
   if (!S.awaitingReveal) lastReveal = null;
 
+  // ★ 关键：没有 winner 就确保关闭弹窗（Host 再来一局后 guest 不会被遮挡）
+  const winnerWrap = document.getElementById("winnerWrap");
   if (S.winner){
     document.getElementById("winnerName").textContent = S.winner.name;
-    document.getElementById("winnerWrap").classList.remove("hidden");
-    // Host 才显示“再来一局”
+    winnerWrap.classList.remove("hidden");
     const ng = document.getElementById('btnNewGame');
     if (ng) ng.classList.toggle('hidden', !isHost);
     launchConfetti();
+  } else {
+    winnerWrap.classList.add("hidden");
   }
+
   enterGameUI();
   document.getElementById("roundNo").textContent = S.roundNo||1;
   document.getElementById("targetRank").textContent = S.target||"-";
@@ -1048,11 +1044,11 @@ document.getElementById("startHand").addEventListener("change", applySettingsLoc
 document.getElementById("btnStart").onclick = startLocal;
 document.getElementById("btnHostRestart").onclick = restartLocal;
 
-/* ★ 新增：胜利弹窗“再来一局” */
+/* 胜利弹窗“再来一局” */
 document.getElementById("btnNewGame").onclick = async ()=>{
   document.getElementById("winnerWrap").classList.add("hidden");
   if (isHost) { await hostNewGame(); }
-  else { await sendAction({ type:'HOST_NEW_GAME' }); } // 安全兜底
+  else { await sendAction({ type:'HOST_NEW_GAME' }); }
 };
 
 document.getElementById("btnPlay").onclick = async ()=>{
@@ -1092,7 +1088,7 @@ document.getElementById("langSel").addEventListener("change", (e)=>{
   if (S) renderAll();
 });
 
-// 页面加载时先尝试登录（让手机一进来就能看到 UID）
+// 页面加载时先尝试登录
 ensureAuth().catch(()=>{});
 applyStaticTexts();
 </script>
