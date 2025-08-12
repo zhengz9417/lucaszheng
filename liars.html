@@ -97,7 +97,7 @@
 
     .roll-banner{margin-top:.5rem; font-size:.85rem; border:1px solid #334155; background:#0b142a; padding:.35rem .6rem; border-radius:.6rem}
 
-    /* 聊天样式 */
+    /* 聊天样式（底部） */
     .chat-wrap{border:1px solid #334155; background:#0b142a; border-radius:12px; padding:10px;}
     .chat-list{max-height:260px; overflow:auto; display:flex; flex-direction:column; gap:6px;}
     .chat-item{font-size:14px; line-height:1.35; background:#0d1630; border:1px solid #334155; border-radius:10px; padding:6px 10px;}
@@ -144,7 +144,7 @@
       <div class="grid md:grid-cols-2 gap-4">
         <div>
           <label class="block text-sm opacity-90 mb-1" id="lblNick">你的昵称</label>
-          <input id="nick" class="w-full rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text:[15px] placeholder-gray-400 outline-none focus:ring-2 focus:ring-sky-400/40" placeholder="例如：Lucas" />
+          <input id="nick" class="w-full rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text-[15px] placeholder-gray-400 outline-none focus:ring-2 focus:ring-sky-400/40" placeholder="例如：Lucas" />
         </div>
         <div>
           <label class="block text-sm opacity-90 mb-1" id="lblRoom">房间号（加入时填写）</label>
@@ -182,19 +182,6 @@
 
       <div id="seats" class="mt-5 grid grid-cols-2 md:grid-cols-4 gap-4"></div>
 
-      <!-- 观战区（随玩家数动态容量） -->
-      <div id="spectatorsPanel" class="mt-4 p-3 rounded-xl border border-[#334155] bg-[#0b142a]">
-        <div class="flex items-center justify-between">
-          <div class="font-semibold" id="specTitle">观战者</div>
-          <div class="flex gap-2 items-center">
-            <span class="text-sm opacity-80" id="specCapTxt"></span>
-            <button id="btnJoinSpectate" class="btn btn-green hidden">加入观战</button>
-            <button id="btnLeaveSpectate" class="btn btn-danger hidden">退出观战</button>
-          </div>
-        </div>
-        <div id="spectatorsList" class="text-sm opacity-90 mt-2"></div>
-      </div>
-
       <p class="opacity-70 text-sm mt-2" id="seatsTip">提示：点击空位即可入座；Host 调整座位数会出现/隐藏位置。</p>
     </section>
 
@@ -205,6 +192,8 @@
         <span class="badge"><span id="lblTarget">目标：</span><b id="targetRank" class="text-sky-300"></b></span>
         <span class="badge"><span id="lblCurrent">当前：</span><b id="currentPlayer" class="text-emerald-300"></b></span>
         <span id="yourTurnTag" class="badge hidden ping" style="border-color:#34d399;color:#34d399">你的回合</span>
+
+        <!-- 开局后才出现，仅 Host 可见 -->
         <button id="btnHostNewGame" class="btn btn-amber hidden ml-auto">新一局</button>
       </div>
 
@@ -234,10 +223,6 @@
         </div>
       </div>
 
-      <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-6 hidden z-30">
-        <div class="px-4 py-2 rounded-full shadow bg-black/70 text-white">提示</div>
-      </div>
-
       <!-- 骰子动画层 -->
       <div id="diceLayer" class="dice-wrap hidden">
         <div class="dice" id="diceBox"></div>
@@ -254,7 +239,7 @@
         </div>
       </div>
 
-      <!-- 聊天（放在游戏最底部；本局内消息；观战者可发） -->
+      <!-- 聊天（底部；整局过滤；观战者可发） -->
       <div id="chatWrap" class="chat-wrap mt-4 hidden">
         <div class="flex items-center justify-between mb-2">
           <h3 class="font-semibold" id="lblChat">聊天</h3>
@@ -265,6 +250,10 @@
           <input id="chatInput" class="flex-1 rounded-xl bg-[#0b142a] border border-[#3b4a70] p-2.5 text-[14px] placeholder-gray-400 outline-none" placeholder="说点什么…" />
           <button id="btnSendChat" class="btn">发送</button>
         </div>
+      </div>
+
+      <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-6 hidden z-30">
+        <div class="px-4 py-2 rounded-full shadow bg-black/70 text-white">提示</div>
       </div>
     </section>
   </main>
@@ -282,8 +271,7 @@ const i18n = {
     start:"开始游戏",
     seatsTip:"提示：点击空位即可入座；Host 调整座位数会出现/隐藏位置。",
     seatN:n=>`座位 ${n}`, joinSeat:"加入此座位", leaveSeat:"退出座位", seated:"在座", eliminated:"淘汰",
-    waitEnd:"本局进行中，待结束后入座", joinSpectate:"加入观战", leaveSpectate:"退出观战",
-    specTitle:"观战者", specCap:(n,cap)=>`名额：${n}/${cap}`,
+    waitEnd:"本局进行中，待结束后入座",
     round:"回合：", target:"目标：", current:"当前：", yourTurn:"你的回合",
     table:"桌面", recent:(name,c)=>`最近：${name} × ${c}`, myHand:"我的手牌（点击选择任意张）", actions:"操作",
     play:c=>`出牌（${c}）`, liar:"liar", reveal:"翻开判定",
@@ -307,8 +295,7 @@ const i18n = {
     start:"Start Game",
     seatsTip:"Tip: click an empty seat to join; changing seats count shows/hides slots.",
     seatN:n=>`Seat ${n}`, joinSeat:"Join this seat", leaveSeat:"Leave seat", seated:"Seated", eliminated:"Eliminated",
-    waitEnd:"Game in progress, join after it ends", joinSpectate:"Join spectate", leaveSpectate:"Leave spectate",
-    specTitle:"Spectators", specCap:(n,cap)=>`Slots: ${n}/${cap}`,
+    waitEnd:"Game in progress, join after it ends",
     round:"Round:", target:"Target:", current:"Current:", yourTurn:"Your turn",
     table:"Table", recent:(name,c)=>`Recent: ${name} × ${c}`, myHand:"Your hand (pick any cards)", actions:"Actions",
     play:c=>`Play (${c})`, liar:"liar", reveal:"Reveal",
@@ -364,7 +351,6 @@ function applyStaticTexts(){
     document.getElementById('chatInput').placeholder = t('chatPh');
     document.getElementById('btnSendChat').textContent = t('send');
   }
-  document.getElementById('specTitle').textContent = t('specTitle');
 }
 
 /* ===================== Firebase 基础 ===================== */
@@ -458,7 +444,6 @@ function roomRefs(roomId){
     actions: room.collection('actions'),
     events: room.collection('events'),
     hands: room.collection('hands'),
-    chat: room.collection('chat'),
   };
 }
 
@@ -470,7 +455,6 @@ async function hostInit(roomId, name){
   const user = await ensureAuth(); uid = user.uid; me.uid = uid;
 
   const { lobby, state } = roomRefs(ROOM_ID);
-
   await state.delete().catch(()=>{});
 
   H = {
@@ -487,7 +471,6 @@ async function hostInit(roomId, name){
     hostUid: uid,
     settings: H.settings,
     seats: H.players.map(p=> p ? {uid:p.uid, name:p.name, alive:p.alive, rolls:p.rolls} : null),
-    spectators: [],
     canStart: false,
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
@@ -517,35 +500,18 @@ async function guestJoin(roomId, name){
   document.getElementById("btnLeaveRoom").classList.remove('hidden');
 }
 
-/* ===================== 观战容量计算 ===================== */
-function calcSpecCapacity(seatsCount, playerCount){
-  if (playerCount <= 1) return 2; // 只有 Host 也给 2 位
-  const cap = Math.min(2, seatsCount - playerCount);
-  return Math.max(0, cap);
-}
-
 /* ===================== Host 写入 & 游戏流程 ===================== */
 async function writeLobby(){
   const { lobby } = roomRefs(ROOM_ID);
   const seatedPlayers = H.players.filter(p=>p && p.alive);
-  const playerCount = H.players.filter(p=>p).length;
   const canStart = seatedPlayers.length >= 2;
-
-  const snap = await lobby.get();
-  const prev = snap.exists ? (snap.data()||{}) : {};
-  const prevSpecs = Array.isArray(prev.spectators)? prev.spectators : [];
-  const capacity = calcSpecCapacity(H.settings.seats, playerCount);
-  const trimmedSpecs = prevSpecs.slice(0, capacity); // 超出裁剪
-
   await lobby.set({
-    hostUid: (prev.hostUid || uid),
+    hostUid: (await lobby.get()).data()?.hostUid || uid,
     settings: H.settings,
     seats: H.players.map(p=> p ? {uid:p.uid, name:p.name, alive:p.alive, rolls:p.rolls} : null),
-    spectators: trimmedSpecs,
     canStart
   }, { merge:true });
 }
-
 async function writeState(withWinner=false){
   const { state } = roomRefs(ROOM_ID);
   const winner = withWinner ? (H.players.find(p=>p && p.alive) || null) : null;
@@ -575,30 +541,6 @@ async function emitEvent(type, payload){
   await events.add({ type, payload, ts: firebase.firestore.FieldValue.serverTimestamp() });
 }
 
-/* 观战数据修改（检查容量） */
-async function updateSpectators(mutator){
-  const { lobby } = roomRefs(ROOM_ID);
-  const snap = await lobby.get();
-  const data = snap.exists ? (snap.data()||{}) : {};
-  let specs = Array.isArray(data.spectators)? [...data.spectators] : [];
-  const seatsCount = (data.settings && data.settings.seats) || (H && H.settings.seats) || 4;
-  const playerCount = (data.seats||[]).filter(Boolean).length;
-  const cap = calcSpecCapacity(seatsCount, playerCount);
-  specs = mutator(specs);
-  if (specs.length > cap) specs = specs.slice(0, cap);
-  await lobby.set({ spectators: specs }, { merge:true });
-}
-async function hostJoinSpectate(_uid, name){
-  await updateSpectators(list=>{
-    if (!list.some(x=>x.uid===_uid)) list.push({uid:_uid, name});
-    return list;
-  });
-}
-async function hostLeaveSpectate(_uid){
-  await updateSpectators(list=> list.filter(x=>x.uid!==_uid));
-}
-
-/* 入座/退座（仅大厅可操作） */
 async function hostTakeSeat(seat, _uid, name){
   if (seat<0 || seat>=H.players.length) return;
   if (H.roundNo>0) return; // 对局中不允许入座
@@ -660,7 +602,6 @@ async function hostStart(){
   await writeState();
   showSmoke();
 }
-
 async function hostNewGame(){
   // 新一局：增加 gameNo
   H.gameNo = (H.gameNo||0) + 1;
@@ -697,7 +638,7 @@ async function hostBackToLobbyReset(){
 
 /* Host 解散房间：删除整个房间及子集合 */
 async function hostCloseRoom(){
-  const { room, lobby, state, actions, events, hands, chat } = roomRefs(ROOM_ID);
+  const { room, lobby, state, actions, events, hands } = roomRefs(ROOM_ID);
   async function delCol(col){
     const snap = await col.get();
     const ops = [];
@@ -710,12 +651,11 @@ async function hostCloseRoom(){
     delCol(actions).catch(()=>{}),
     delCol(events).catch(()=>{}),
     delCol(hands).catch(()=>{}),
-    delCol(chat).catch(()=>{}),
   ]);
   await room.delete().catch(()=>{});
 }
 
-/* 玩家离开（任何时刻，离开房间；若只剩 1 人则结算胜负） */
+/* 玩家离开（离开房间；若只剩 1 人则结算胜负） */
 async function hostRemovePlayer(guestUid){
   const idx = H.players.findIndex(p=>p && p.uid===guestUid);
   if (idx >= 0){
@@ -813,14 +753,14 @@ async function redealFrom(startIndex){
   showSmoke();
 }
 
-/* ===================== Host 监听 actions ===================== */
+/* ===================== Host 监听 actions（含 CHAT 转事件） ===================== */
 let unsubActions = null;
 function attachHostActionListener(){
   if (hasHostAction) return;
   const { actions } = roomRefs(ROOM_ID);
   unsubActions && unsubActions();
 
-  unsubActions = actions.orderBy('ts').limitToLast(100).onSnapshot(async (qs)=>{
+  unsubActions = actions.orderBy('ts').limitToLast(200).onSnapshot(async (qs)=>{
     for (const ch of qs.docChanges()){
       if (ch.type !== 'added') continue;
       const doc = ch.doc; const a = doc.data()||{};
@@ -831,8 +771,6 @@ function attachHostActionListener(){
           case 'TAKE_SEAT':      await hostTakeSeat(a.seat, a.uid, a.name); break;
           case 'LEAVE_SEAT':     await hostRemoveSeat(a.uid); break;
           case 'LEAVE_ROOM':     await hostRemovePlayer(a.uid); break;
-          case 'JOIN_SPECTATE':  await hostJoinSpectate(a.uid, a.name); break;
-          case 'LEAVE_SPECTATE': await hostLeaveSpectate(a.uid); break;
           case 'PLAY':           await hostPlay(a.uid, a.indices); break;
           case 'LIAR':           await hostLiar(a.uid); break;
           case 'REVEAL':         await hostReveal(); break;
@@ -840,6 +778,9 @@ function attachHostActionListener(){
           case 'HOST_START':     if (a.uid===uid) await hostStart(); break;
           case 'HOST_NEW_GAME':  if (a.uid===uid) await hostNewGame(); break;
           case 'BACK_TO_LOBBY':  await hostBackToLobbyReset(); break;
+          case 'CHAT':           // 转发为事件，保证所有人可见
+            await emitEvent("CHAT", { uid:a.uid, name:a.name, text:(a.text||'').toString().slice(0,400), gameNo: H.gameNo||0 });
+            break;
         }
       } finally {
         await doc.ref.update({ processed:true, processedBy: uid });
@@ -852,79 +793,12 @@ function attachHostActionListener(){
   hasHostAction = true;
 }
 
-/* ===================== 公用监听 & 聊天 ===================== */
-let unsubLobby=null, unsubState=null, unsubEvents=null, unsubMyHand=null, unsubChat=null;
-let chatCache = []; // 全部消息快照
-let localPending = []; // 本地未确认（立即显示）
+/* ===================== 公用监听 & 聊天（基于 events） ===================== */
+let unsubLobby=null, unsubState=null, unsubEvents=null, unsubMyHand=null;
+let chatCache = [];      // 已到达的聊天事件
 let L=null, S=null, myHand=[], myHandHash="";
 let lastReveal=null, lastTurnUid=null;
 const processedEvents = new Set();
-
-function attachChatListener(){
-  if (unsubChat) return;
-  const { chat } = roomRefs(ROOM_ID);
-  unsubChat = chat.orderBy('ts').limitToLast(300).onSnapshot((qs)=>{
-    chatCache = [];
-    qs.forEach(d=>{
-      const m = d.data()||{};
-      chatCache.push({id:d.id, ...m});
-    });
-    renderChat();
-  }, err=>console.error('Chat listen error:', err));
-}
-function detachChatListener(){ if (unsubChat){ unsubChat(); unsubChat=null; } chatCache=[]; localPending=[]; renderChat(); }
-
-async function sendChat(text){
-  if (!text || !text.trim()) return;
-  await ensureAuth();
-  const payload = {
-    uid: auth.currentUser.uid, name: me.name, text: text.trim(),
-    gameNo: (S && S.gameNo) || 0,
-    ts: firebase.firestore.FieldValue.serverTimestamp()
-  };
-  // 先本地显示（pending）
-  localPending.push({ ...payload, __local:true, ts: {seconds: Math.floor(Date.now()/1000)} });
-  renderChat();
-  const { chat } = roomRefs(ROOM_ID);
-  await chat.add(payload);
-  // 等快照回来会自动覆盖；这里清空本地 pending
-  setTimeout(()=>{ localPending=[]; }, 500);
-}
-
-function renderChat(){
-  const cw = document.getElementById('chatWrap');
-  if (!cw) return;
-  const list = document.getElementById('chatList');
-  list.innerHTML = '';
-  const gameNo = (S && S.gameNo) || 0;
-
-  const msgs = [...chatCache.filter(m => (m.gameNo||0) === gameNo), ...localPending];
-  msgs.sort((a,b)=>{
-    const ta = a.ts?.seconds || 0, tb = b.ts?.seconds || 0;
-    return ta - tb;
-  });
-
-  msgs.forEach(m=>{
-    const div = document.createElement('div');
-    div.className = 'chat-item' + (m.uid===(auth.currentUser&&auth.currentUser.uid)?' chat-me':'');
-    const name = escapeHTML(m.name||'?');
-    const text = escapeHTML(m.text||'');
-    div.innerHTML = `<b>${name}</b>：${text}${m.__local?` <span style="opacity:.6">(…)</span>`:''}`;
-    list.appendChild(div);
-  });
-  list.scrollTop = list.scrollHeight;
-}
-function escapeHTML(s){ return (s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
-
-function handleRoomClosedUI(){
-  detachAll();
-  localStorage.removeItem('lb_session');
-  ROOM_ID = null; isHost=false; myHand=[]; myHandHash=""; lastReveal=null; lastTurnUid=null; hasHostAction=false;
-  document.getElementById("lobby").classList.add("hidden");
-  document.getElementById("game").classList.add("hidden");
-  document.getElementById("connect").classList.remove("hidden");
-  toast(t('closed'));
-}
 
 function attachCommonListeners(){
   const { lobby, state, events, hands } = roomRefs(ROOM_ID);
@@ -954,25 +828,32 @@ function attachCommonListeners(){
 
   unsubState && unsubState();
   unsubState = state.onSnapshot((doc)=>{
-    if (!doc.exists) { S = null; enterLobbyUI(); detachChatListener(); return; }
+    if (!doc.exists) { S = null; enterLobbyUI(); return; }
     S = doc.data();
     renderAll();
-    const showChat = (S.roundNo||0) > 0; // 对局进行中才显示聊天
-    document.getElementById('chatWrap').classList.toggle('hidden', !showChat);
-    if (showChat) attachChatListener(); else detachChatListener();
+    // 对局进行中显示聊天
+    document.getElementById('chatWrap').classList.toggle('hidden', !(S.roundNo>0));
   }, err=>{
     console.error('State listen error:', err);
     alert('读取游戏状态失败：' + (err && err.message ? err.message : err));
   });
 
   unsubEvents && unsubEvents();
-  unsubEvents = events.orderBy('ts').limitToLast(50).onSnapshot((qs)=>{
+  unsubEvents = events.orderBy('ts').limitToLast(300).onSnapshot((qs)=>{
     qs.docChanges().forEach(ch=>{
       if (ch.type !== 'added') return;
       const id = ch.doc.id; if (processedEvents.has(id)) return;
       processedEvents.add(id);
       const e = ch.doc.data();
       if (!e || !e.type) return;
+
+      if (e.type === "CHAT"){
+        // 收集聊天事件
+        chatCache.push({ id, ...e.payload, ts: e.ts });
+        renderChat();
+        return;
+      }
+
       switch(e.type){
         case "REVEAL_VIEW":
           lastReveal = e.payload?.cards||[];
@@ -1006,7 +887,55 @@ function attachCommonListeners(){
   });
 }
 
-/* ===================== 事件发送 ===================== */
+/* 聊天发送（通过 actions → Host 转 events） */
+async function sendChat(text){
+  if (!text || !text.trim()) return;
+  await ensureAuth();
+  const clean = text.trim().slice(0, 400);
+  // 先本地乐观显示
+  chatCache.push({ uid: auth.currentUser.uid, name: me.name, text: clean, gameNo: (S&&S.gameNo)||0, ts: {seconds: Math.floor(Date.now()/1000)} , __local:true });
+  renderChat();
+  // 发给 Host 转事件
+  await sendAction({ type:'CHAT', text: clean });
+}
+
+/* 聊天渲染：按 gameNo 过滤并滚底 */
+function renderChat(){
+  const cw = document.getElementById('chatWrap');
+  if (!cw) return;
+  const list = document.getElementById('chatList');
+  const gameNo = (S && S.gameNo) || 0;
+
+  const msgs = chatCache.filter(m => (m.gameNo||0) === gameNo);
+  msgs.sort((a,b)=>{
+    const ta = a.ts?.seconds || 0, tb = b.ts?.seconds || 0;
+    return ta - tb;
+  });
+
+  list.innerHTML = '';
+  msgs.forEach(m=>{
+    const div = document.createElement('div');
+    div.className = 'chat-item' + (m.uid===(auth.currentUser&&auth.currentUser.uid)?' chat-me':'');
+    const name = escapeHTML(m.name||'?');
+    const text = escapeHTML(m.text||'');
+    div.innerHTML = `<b>${name}</b>：${text}${m.__local?` <span style="opacity:.6">(…)</span>`:''}`;
+    list.appendChild(div);
+  });
+  list.scrollTop = list.scrollHeight;
+}
+function escapeHTML(s){ return (s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+function handleRoomClosedUI(){
+  detachAll();
+  localStorage.removeItem('lb_session');
+  ROOM_ID = null; isHost=false; myHand=[]; myHandHash=""; lastReveal=null; lastTurnUid=null; hasHostAction=false;
+  document.getElementById("lobby").classList.add("hidden");
+  document.getElementById("game").classList.add("hidden");
+  document.getElementById("connect").classList.remove("hidden");
+  toast(t('closed'));
+}
+
+/* ===================== 事件发送（通用） ===================== */
 async function sendAction(data){
   try{
     await ensureAuth();
@@ -1029,16 +958,12 @@ async function sendAction(data){
 function enterLobbyUI(){ document.getElementById("connect").classList.add("hidden"); document.getElementById("game").classList.add("hidden"); document.getElementById("lobby").classList.remove("hidden"); }
 function enterGameUI(){ document.getElementById("lobby").classList.add("hidden"); document.getElementById("game").classList.remove("hidden"); }
 
-/* 大厅渲染 */
 function renderLobbyLocal(lobby){
   applyStaticTexts();
   const seats = document.getElementById("seats"); seats.innerHTML="";
   const seatsN = lobby.settings.seats;
   const hostUid = lobby.hostUid;
-  const spectators = Array.isArray(lobby.spectators)? lobby.spectators : [];
   const gameRunning = !!(S && (S.roundNo||0) > 0);
-  const playerCount = (lobby.seats||[]).filter(Boolean).length;
-  const cap = calcSpecCapacity(seatsN, playerCount);
 
   for(let i=0;i<seatsN;i++){
     const cell = document.createElement('div'); cell.className = "rounded-xl p-3 border border-[#334155] bg-[#0b142a]";
@@ -1069,31 +994,6 @@ function renderLobbyLocal(lobby){
     }
     seats.appendChild(cell);
   }
-
-  // 观战区
-  const sp = document.getElementById('spectatorsPanel');
-  const sl = document.getElementById('spectatorsList');
-  const btnJS = document.getElementById('btnJoinSpectate');
-  const btnLS = document.getElementById('btnLeaveSpectate');
-  const capTxt = document.getElementById('specCapTxt');
-
-  const myUid = auth.currentUser && auth.currentUser.uid;
-  const imSeated = (lobby.seats||[]).some(s=>s && s.uid===myUid);
-  const imSpec = spectators.some(s=>s.uid===myUid);
-
-  const seatsFull = playerCount >= seatsN;
-  const showSpectate = true; // 大厅始终显示观战区（容量可能为 0）
-  sp.classList.toggle('hidden', !showSpectate);
-
-  const cur = spectators.length;
-  capTxt.textContent = i18n[LANG].specCap(cur, cap);
-
-  sl.innerHTML = spectators.length ? spectators.map(s=> `<span class="badge mr-2 mb-2 inline-block">${s.name}</span>`).join('') : `<span class="text-sm opacity-70">暂无观战者</span>`;
-
-  btnJS.classList.toggle('hidden', imSeated || imSpec || cur>=cap);
-  btnLS.classList.toggle('hidden', !imSpec);
-  btnJS.onclick = async ()=>{ try{ await sendAction({type:'JOIN_SPECTATE'}); }catch(e){} };
-  btnLS.onclick = async ()=>{ try{ await sendAction({type:'LEAVE_SPECTATE'}); }catch(e){} };
 
   document.getElementById("roomShow").textContent = ROOM_ID;
 }
@@ -1220,8 +1120,7 @@ function renderAll(){
   lastTurnUid = nowTurnUid;
 
   renderHandOnly();
-  // 刷新聊天（会按 gameNo 过滤，并自动滚底）
-  renderChat();
+  renderChat(); // 刷新聊天（按 gameNo）
 }
 
 function glyphFor(r){ switch(r){ case 'A': return '✪'; case 'K': return '♚'; case 'Q': return '👑'; case 'JOKER': return '🃏'; default: return ''; } }
@@ -1334,7 +1233,6 @@ function detachAll(){
   unsubState && unsubState(); unsubState=null;
   unsubEvents && unsubEvents(); unsubEvents=null;
   unsubMyHand && unsubMyHand(); unsubMyHand=null;
-  detachChatListener();
 }
 async function leaveRoomLocal(){
   try { await sendAction({ type:'LEAVE_ROOM' }); } catch(e){}
