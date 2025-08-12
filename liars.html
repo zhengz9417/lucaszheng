@@ -145,7 +145,7 @@
       <div class="grid md:grid-cols-2 gap-4">
         <div>
           <label class="block text-sm opacity-90 mb-1" id="lblNick">你的昵称</label>
-          <input id="nick" class="w-full rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text-[15px]" placeholder="例如：Lucas" />
+          <input id="nick" class="w-full rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text-[15px]" placeholder="例如：Ann" />
         </div>
         <div>
           <label class="block text-sm opacity-90 mb-1" id="lblRoom">房间号（加入时填写）</label>
@@ -301,7 +301,7 @@ const i18n = {
     winner:"胜利！", winText:"获得胜利 🎉", newGame:"新一局",
     claim:(who,target,count)=>`${who}：宣称 ${target} × ${count}`,
     rollBanner:(name,v,dead)=> dead ? `${name} 掷出 ${v} —— 淘汰！` : `${name} 掷出 ${v} —— 安全`,
-    phNick:"例如：Lucas", phRoom:"例如：ABCD1",
+    phNick:"例如：Ann", phRoom:"例如：ABCD1",
     chat:"聊天", chatHint:"本局内消息", chatPh:"说点什么…", send:"发送",
     closed:"房间已关闭",
     rulesSummary:"游戏规则", tipsSummary:"使用提醒",
@@ -327,7 +327,7 @@ const i18n = {
     winner:"Victory!", winText:"wins 🎉", newGame:"New Game",
     claim:(who,target,count)=>`${who}: claims ${target} × ${count}`,
     rollBanner:(name,v,dead)=> dead ? `${name} rolled ${v} — DEAD!` : `${name} rolled ${v} — safe`,
-    phNick:"e.g., Lucas", phRoom:"e.g., ABCD1",
+    phNick:"e.g., Ann", phRoom:"e.g., ABCD1",
     chat:"Chat", chatHint:"This game only", chatPh:"Say something…", send:"Send",
     closed:"Room closed",
     rulesSummary:"Rules", tipsSummary:"Tips",
@@ -1551,3 +1551,4 @@ ensureAuth().then(()=> tryAutoResume()).catch(()=>{}).finally(()=> applyStaticTe
 </script>
 </body>
 </html>
+
