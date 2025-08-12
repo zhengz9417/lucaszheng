@@ -117,7 +117,7 @@
       </div>
       <div class="flex items-center gap-2">
         <span id="authBadge" class="badge">Auth: —</span>
-        <!-- Host 顶部按钮：退出房间 -->
+        <!-- Host 顶部按钮：退出房间（=解散房间） -->
         <button id="btnResetAll" class="btn hidden">退出房间</button>
         <!-- Guest 退出房间 -->
         <button id="btnLeaveRoom" class="btn btn-danger hidden">退出房间</button>
@@ -176,11 +176,9 @@
             <label class="text-sm opacity-80" id="lblStartHand">起始手牌</label>
             <input id="startHand" type="number" min="3" max="9" value="5" class="w-20 rounded-xl bg-[#0b142a] border border-[#3b4a70] p-2.5"/>
           </div>
-          <!-- 只保留开始游戏 -->
           <button id="btnStart" class="btn btn-prim disabled:opacity-50" disabled>开始游戏</button>
         </div>
       </div>
-
       <div id="seats" class="mt-5 grid grid-cols-2 md:grid-cols-4 gap-4"></div>
 
       <!-- 观战区 -->
@@ -206,7 +204,7 @@
         <span class="badge"><span id="lblCurrent">当前：</span><b id="currentPlayer" class="text-emerald-300"></b></span>
         <span id="yourTurnTag" class="badge hidden ping" style="border-color:#34d399;color:#34d399">你的回合</span>
 
-        <!-- 仅 Host 可见，且开局后才出现 -->
+        <!-- 仅 Host 可见：开局后才出现 -->
         <button id="btnHostNewGame" class="btn btn-amber hidden ml-auto">新一局</button>
       </div>
 
@@ -281,7 +279,7 @@ const i18n = {
     localNote:"跨设备联机版（Firebase Firestore 实时）。",
     roomShow:"房间号：", role:"我的身份：", roleHost:"Host", roleGuest:"Guest",
     seats:"座位数（2–4）", startHand:"起始手牌",
-    apply:"应用设置", start:"开始游戏", restart:"重开",
+    start:"开始游戏",
     seatsTip:"提示：点击空位即可入座；Host 调整座位数会出现/隐藏位置。",
     seatN:n=>`座位 ${n}`, joinSeat:"加入此座位", leaveSeat:"退出座位", seated:"在座", eliminated:"淘汰",
     waitEnd:"本局进行中，待结束后入座", joinSpectate:"加入观战", leaveSpectate:"退出观战",
@@ -297,6 +295,7 @@ const i18n = {
     rollBanner:(name,v,dead)=> dead ? `${name} 掷出 ${v} —— 淘汰！` : `${name} 掷出 ${v} —— 安全`,
     phNick:"例如：Lucas", phRoom:"例如：ABCD1",
     chat:"聊天", chatHint:"仅显示本局消息", chatPh:"说点什么…", send:"发送",
+    closed:"房间已关闭",
   },
   en:{back:"Back to Home", title:"Liar’s Bar", refresh:"Leave room",
     connectTitle:"Join or Create a Room", nick:"Your nickname", room:"Room ID (to join)",
@@ -304,7 +303,7 @@ const i18n = {
     localNote:"Cross-device realtime (Firebase Firestore).",
     roomShow:"Room:", role:"Role:", roleHost:"Host", roleGuest:"Guest",
     seats:"Seats (2–4)", startHand:"Start hand",
-    apply:"Apply", start:"Start Game", restart:"Restart",
+    start:"Start Game",
     seatsTip:"Tip: click an empty seat to join; changing seats count shows/hides slots.",
     seatN:n=>`Seat ${n}`, joinSeat:"Join this seat", leaveSeat:"Leave seat", seated:"Seated", eliminated:"Eliminated",
     waitEnd:"Game in progress, join after it ends", joinSpectate:"Join spectate", leaveSpectate:"Leave spectate",
@@ -320,6 +319,7 @@ const i18n = {
     rollBanner:(name,v,dead)=> dead ? `${name} rolled ${v} — DEAD!` : `${name} rolled ${v} — safe`,
     phNick:"e.g., Lucas", phRoom:"e.g., ABCD1",
     chat:"Chat", chatHint:"This round only", chatPh:"Say something…", send:"Send",
+    closed:"Room closed",
   }
 };
 function t(k,...a){ const v=i18n[LANG][k]; return typeof v==='function'?v(...a):(v??k); }
@@ -578,13 +578,20 @@ async function hostLeaveSpectate(_uid){
   await updateSpectators(list=> list.filter(x=>x.uid!==_uid));
 }
 
-/* === 关键修复：入座 === */
+/* 入座/退座（仅大厅可操作） */
 async function hostTakeSeat(seat, _uid, name){
   if (seat<0 || seat>=H.players.length) return;
-  if (H.roundNo>0) return; // 游戏进行中不允许入座（观战即可）
+  if (H.roundNo>0) return; // 对局中不允许入座
   if (H.players[seat]) return;
   if (H.players.findIndex(p=>p && p.uid===_uid)>=0) return;
   H.players[seat] = { uid:_uid, name, alive:true, rolls:[], rollMap:{}, hand:[] };
+  await writeLobby();
+}
+async function hostRemoveSeat(guestUid){
+  if (H.roundNo>0) return;
+  const idx = H.players.findIndex(p=>p && p.uid===guestUid);
+  if (idx < 0) return;
+  H.players[idx] = null;
   await writeLobby();
 }
 
@@ -609,6 +616,7 @@ async function hostApplySettings(){
   await writeLobby();
 }
 
+/* 开始 / 新一局 / 回大厅 */
 async function hostStart(){
   const seated = H.players.filter(p=>p && p.alive);
   if (seated.length < 2){ toast(t('need2p')); return; }
@@ -628,8 +636,6 @@ async function hostStart(){
   await writeState();
   showSmoke();
 }
-
-/* 游戏中“新一局” */
 async function hostNewGame(){
   H.players = H.players.map(p => p ? { ...p, alive:true, rolls:[], rollMap:{}, hand:[] } : p);
 
@@ -651,17 +657,37 @@ async function hostNewGame(){
   await sendHands(); await writeLobby(); await writeState();
   showSmoke();
 }
-
-/* 大厅阶段可“退出座位” */
-async function hostRemoveSeat(guestUid){
-  if (H.roundNo>0) return;
-  const idx = H.players.findIndex(p=>p && p.uid===guestUid);
-  if (idx < 0) return;
-  H.players[idx] = null;
+async function hostBackToLobbyReset(){
+  H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
+  H.target=null; H.turn=0;
+  H.players.forEach(p=>{ if(p){ p.alive=true; p.rolls=[]; p.rollMap={}; p.hand=[]; }});
+  await sendHands();
   await writeLobby();
+  await writeState();
+  enterLobbyUI();
 }
 
-/* 离开房间（任何时刻） */
+/* Host 解散房间：删除整个房间及子集合 */
+async function hostCloseRoom(){
+  const { room, lobby, state, actions, events, hands, chat } = roomRefs(ROOM_ID);
+  async function delCol(col){
+    const snap = await col.get();
+    const ops = [];
+    snap.forEach(d=> ops.push(d.ref.delete()));
+    await Promise.all(ops);
+  }
+  await Promise.all([
+    lobby.delete().catch(()=>{}),
+    state.delete().catch(()=>{}),
+    delCol(actions).catch(()=>{}),
+    delCol(events).catch(()=>{}),
+    delCol(hands).catch(()=>{}),
+    delCol(chat).catch(()=>{}),
+  ]);
+  await room.delete().catch(()=>{});
+}
+
+/* 玩家离开（任何时刻，仅删除其座位；若 Host 走，按按钮走 hostCloseRoom） */
 async function hostRemovePlayer(guestUid){
   const idx = H.players.findIndex(p=>p && p.uid===guestUid);
   if (idx >= 0){
@@ -758,29 +784,6 @@ async function redealFrom(startIndex){
   await writeState();
   showSmoke();
 }
-async function hostBackToLobbyReset(){
-  H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
-  H.target=null; H.turn=0;
-  H.players.forEach(p=>{ if(p){ p.alive=true; p.rolls=[]; p.rollMap={}; p.hand=[]; }});
-  await sendHands();
-  await writeLobby();
-  await writeState();
-  enterLobbyUI();
-}
-
-/* Host 转移（Host 退出房间时） */
-async function reassignHostIfNeeded(leavingUid){
-  const { lobby } = roomRefs(ROOM_ID);
-  const snap = await lobby.get();
-  if (!snap.exists) return;
-  const data = snap.data()||{};
-  if (data.hostUid !== leavingUid) return;
-  const next = (H.players.find(p=>p && p.uid!==leavingUid) || null)
-    || ((Array.isArray(data.spectators)?data.spectators:[])[0]||null);
-  if (next && next.uid){
-    await lobby.set({ hostUid: next.uid }, { merge:true });
-  }
-}
 
 /* ===================== Host 监听 actions ===================== */
 let unsubActions = null;
@@ -799,7 +802,7 @@ function attachHostActionListener(){
         switch(a.type){
           case 'TAKE_SEAT':      await hostTakeSeat(a.seat, a.uid, a.name); break;
           case 'LEAVE_SEAT':     await hostRemoveSeat(a.uid); break;
-          case 'LEAVE_ROOM':     await hostRemovePlayer(a.uid); if (a.uid===uid) await reassignHostIfNeeded(a.uid); break;
+          case 'LEAVE_ROOM':     await hostRemovePlayer(a.uid); break; // Host 的离开不走这里，走 hostCloseRoom
           case 'JOIN_SPECTATE':  await hostJoinSpectate(a.uid, a.name); break;
           case 'LEAVE_SPECTATE': await hostLeaveSpectate(a.uid); break;
           case 'PLAY':           await hostPlay(a.uid, a.indices); break;
@@ -823,6 +826,7 @@ function attachHostActionListener(){
 
 /* ===================== 公用监听 & 聊天 ===================== */
 let unsubLobby=null, unsubState=null, unsubEvents=null, unsubMyHand=null, unsubChat=null;
+let chatCache = [];
 let L=null, S=null, myHand=[], myHandHash="";
 let lastReveal=null, lastTurnUid=null;
 const processedEvents = new Set();
@@ -831,15 +835,15 @@ function attachChatListener(){
   if (unsubChat) return;
   const { chat } = roomRefs(ROOM_ID);
   unsubChat = chat.orderBy('ts').limitToLast(200).onSnapshot((qs)=>{
-    const msgs = [];
+    chatCache = [];
     qs.forEach(d=>{
       const m = d.data()||{};
-      msgs.push({id:d.id, ...m});
+      chatCache.push({id:d.id, ...m});
     });
-    renderChat(msgs);
+    renderChat(chatCache);
   }, err=>console.error('Chat listen error:', err));
 }
-function detachChatListener(){ if (unsubChat){ unsubChat(); unsubChat=null; } }
+function detachChatListener(){ if (unsubChat){ unsubChat(); unsubChat=null; } chatCache=[]; }
 
 async function sendChat(text){
   if (!text || !text.trim()) return;
@@ -862,19 +866,29 @@ function renderChat(allMsgs){
   msgs.forEach(m=>{
     const div = document.createElement('div');
     div.className = 'chat-item' + (m.uid===(auth.currentUser&&auth.currentUser.uid)?' chat-me':'');
-    div.innerHTML = `<b>${m.name||'?'}</b>：${escapeHTML(m.text||'')}`;
+    div.innerHTML = `<b>${escapeHTML(m.name||'?')}</b>：${escapeHTML(m.text||'')}`;
     list.appendChild(div);
   });
   list.scrollTop = list.scrollHeight;
 }
 function escapeHTML(s){ return (s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
 
+function handleRoomClosedUI(){
+  detachAll();
+  localStorage.removeItem('lb_session');
+  ROOM_ID = null; isHost=false; myHand=[]; myHandHash=""; lastReveal=null; lastTurnUid=null; hasHostAction=false;
+  document.getElementById("lobby").classList.add("hidden");
+  document.getElementById("game").classList.add("hidden");
+  document.getElementById("connect").classList.remove("hidden");
+  toast(t('closed'));
+}
+
 function attachCommonListeners(){
   const { lobby, state, events, hands } = roomRefs(ROOM_ID);
 
   unsubLobby && unsubLobby();
   unsubLobby = lobby.onSnapshot((doc)=>{
-    if (!doc.exists) return;
+    if (!doc.exists){ handleRoomClosedUI(); return; }
     L = doc.data();
 
     const imHost = (L.hostUid === (auth.currentUser && auth.currentUser.uid));
@@ -1271,7 +1285,7 @@ function renderHandOnly(){
   document.getElementById("btnPlay").textContent = t('play', sel.size);
 }
 
-/* ===================== 离开房间（Host/Guest） ===================== */
+/* ===================== 离开/解散 ===================== */
 function detachAll(){
   unsubLobby && unsubLobby(); unsubLobby=null;
   unsubState && unsubState(); unsubState=null;
@@ -1292,6 +1306,10 @@ async function leaveRoomLocal(){
   document.getElementById("connect").classList.remove('hidden');
   toast(LANG==='zh' ? '已退出房间' : 'Left the room');
 }
+async function closeRoomAndLeave(){
+  try{ await hostCloseRoom(); }catch(e){}
+  handleRoomClosedUI();
+}
 
 /* ===================== 绑定事件 ===================== */
 document.getElementById("btnCreate").onclick = async ()=>{
@@ -1308,14 +1326,13 @@ document.getElementById("btnJoin").onclick = async ()=>{
   applyStaticTexts();
 };
 
-/* 顶部按钮：退出房间 */
-document.getElementById("btnResetAll").onclick = leaveRoomLocal;
+/* 顶部按钮 */
+document.getElementById("btnResetAll").onclick = async ()=>{ if (isHost) await closeRoomAndLeave(); else await leaveRoomLocal(); };
 document.getElementById("btnLeaveRoom").onclick = leaveRoomLocal;
 
-/* 自动应用设置 */
+/* 自动应用设置 & 开始 */
 async function applySettingsLocal(){ if (!isHost) return; await hostApplySettings(); }
 async function startLocal(){ if (!isHost) return; await hostStart(); }
-
 document.getElementById("seatMax").addEventListener("change", applySettingsLocal);
 document.getElementById("startHand").addEventListener("change", applySettingsLocal);
 document.getElementById("btnStart").onclick = startLocal;
@@ -1325,7 +1342,7 @@ document.getElementById("btnHostNewGame").onclick = async ()=>{
   if (isHost) await hostNewGame(); else await sendAction({ type:'HOST_NEW_GAME' });
 };
 
-/* 胜利弹窗按钮 */
+/* 胜利弹窗按钮（继续或回大厅） */
 document.getElementById("btnNewGame").onclick = async ()=>{
   document.getElementById("winnerWrap").classList.add("hidden");
   if (isHost) { await hostNewGame(); }
