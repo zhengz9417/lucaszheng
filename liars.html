@@ -102,6 +102,9 @@
     .chat-list{max-height:260px; overflow:auto; display:flex; flex-direction:column; gap:6px;}
     .chat-item{font-size:14px; line-height:1.35; background:#0d1630; border:1px solid #334155; border-radius:10px; padding:6px 10px;}
     .chat-me{border-color:#60a5fa99;}
+
+    /* 恶魔牌标记 */
+    .demon .front .rank{ color:#fb7185; text-shadow:0 0 8px rgba(251,113,133,.35); }
   </style>
 </head>
 <body class="min-h-screen">
@@ -117,9 +120,7 @@
       </div>
       <div class="flex items-center gap-2">
         <span id="authBadge" class="badge">Auth: —</span>
-        <!-- Host：解散房间 -->
         <button id="btnResetAll" class="btn hidden">退出房间</button>
-        <!-- Guest：退出房间 -->
         <button id="btnLeaveRoom" class="btn btn-danger hidden">退出房间</button>
       </div>
     </div>
@@ -155,6 +156,19 @@
         <button id="btnCreate" class="btn btn-prim">我是主机（创建房间）</button>
         <button id="btnJoin" class="btn btn-green">加入房间</button>
       </div>
+
+      <!-- 折叠：规则 & 提醒 -->
+      <div class="mt-6 space-y-3">
+        <details class="glass rounded-xl p-3">
+          <summary class="cursor-pointer font-semibold" id="rulesSummary">游戏规则</summary>
+          <div id="rulesBody" class="opacity-90 mt-2 text-sm leading-relaxed"></div>
+        </details>
+        <details class="glass rounded-xl p-3">
+          <summary class="cursor-pointer font-semibold" id="tipsSummary">使用提醒</summary>
+          <div id="tipsBody" class="opacity-90 mt-2 text-sm leading-relaxed"></div>
+        </details>
+      </div>
+
       <p class="opacity-70 text-sm mt-3" id="localNote">跨设备联机版（Firebase Firestore 实时）。</p>
     </section>
 
@@ -176,12 +190,14 @@
             <label class="text-sm opacity-80" id="lblStartHand">起始手牌</label>
             <input id="startHand" type="number" min="3" max="9" value="5" class="w-20 rounded-xl bg-[#0b142a] border border-[#3b4a70] p-2.5"/>
           </div>
+          <div class="flex items-center gap-2">
+            <label class="text-sm opacity-80" id="lblDemon">恶魔牌模式</label>
+            <input id="demonMode" type="checkbox" class="w-5 h-5">
+          </div>
           <button id="btnStart" class="btn btn-prim disabled:opacity-50" disabled>开始游戏</button>
         </div>
       </div>
-
       <div id="seats" class="mt-5 grid grid-cols-2 md:grid-cols-4 gap-4"></div>
-
       <p class="opacity-70 text-sm mt-2" id="seatsTip">提示：点击空位即可入座；Host 调整座位数会出现/隐藏位置。</p>
     </section>
 
@@ -193,8 +209,6 @@
         <span class="badge"><span id="lblCurrent">当前：</span><b id="currentPlayer" class="text-emerald-300"></b></span>
         <span class="badge"><span id="lblRoomId">房间：</span><b id="roomIdInGame"></b></span>
         <span id="yourTurnTag" class="badge hidden ping" style="border-color:#34d399;color:#34d399">你的回合</span>
-
-        <!-- 开局后才出现，仅 Host 可见 -->
         <button id="btnHostNewGame" class="btn btn-amber hidden ml-auto">新一局</button>
       </div>
 
@@ -240,7 +254,7 @@
         </div>
       </div>
 
-      <!-- 聊天（底部；整局过滤；观战者可发） -->
+      <!-- 聊天 -->
       <div id="chatWrap" class="chat-wrap mt-4 hidden">
         <div class="flex items-center justify-between mb-2">
           <h3 class="font-semibold" id="lblChat">聊天</h3>
@@ -268,8 +282,7 @@ const i18n = {
     create:"我是主机（创建房间）", join:"加入房间",
     localNote:"跨设备联机版（Firebase Firestore 实时）。",
     roomShow:"房间号：", role:"我的身份：", roleHost:"Host", roleGuest:"Guest",
-    seats:"座位数（2–4）", startHand:"起始手牌",
-    start:"开始游戏",
+    seats:"座位数（2–4）", startHand:"起始手牌", demonMode:"恶魔牌模式", start:"开始游戏",
     seatsTip:"提示：点击空位即可入座；Host 调整座位数会出现/隐藏位置。",
     seatN:n=>`座位 ${n}`, joinSeat:"加入此座位", leaveSeat:"退出座位", seated:"在座", eliminated:"淘汰",
     waitEnd:"本局进行中，待结束后入座",
@@ -286,14 +299,14 @@ const i18n = {
     phNick:"例如：Lucas", phRoom:"例如：ABCD1",
     chat:"聊天", chatHint:"本局内消息", chatPh:"说点什么…", send:"发送",
     closed:"房间已关闭",
+    rulesSummary:"游戏规则", tipsSummary:"使用提醒",
   },
   en:{back:"Back to Home", title:"Liar’s Bar", refresh:"Leave room",
     connectTitle:"Join or Create a Room", nick:"Your nickname", room:"Room ID (to join)",
     create:"I'm Host (Create)", join:"Join Room",
     localNote:"Cross-device realtime (Firebase Firestore).",
     roomShow:"Room:", role:"Role:", roleHost:"Host", roleGuest:"Guest",
-    seats:"Seats (2–4)", startHand:"Start hand",
-    start:"Start Game",
+    seats:"Seats (2–4)", startHand:"Start hand", demonMode:"Demon Card mode", start:"Start Game",
     seatsTip:"Tip: click an empty seat to join; changing seats count shows/hides slots.",
     seatN:n=>`Seat ${n}`, joinSeat:"Join this seat", leaveSeat:"Leave seat", seated:"Seated", eliminated:"Eliminated",
     waitEnd:"Game in progress, join after it ends",
@@ -310,9 +323,63 @@ const i18n = {
     phNick:"e.g., Lucas", phRoom:"e.g., ABCD1",
     chat:"Chat", chatHint:"This game only", chatPh:"Say something…", send:"Send",
     closed:"Room closed",
+    rulesSummary:"Rules", tipsSummary:"Tips",
   }
 };
 function t(k,...a){ const v=i18n[LANG][k]; return typeof v==='function'?v(...a):(v??k); }
+
+/* ==== 规则/提醒文案（双语） ==== */
+const RULES_ZH = `
+<ul class="list-disc pl-5 space-y-1">
+<li><b>牌池：</b>A×6、Q×6、K×6、JOKER×2（JOKER 为万能牌）。</li>
+<li><b>开局：</b>2–4 人入座可开始；默认每人 5 张（Host 可调整）。</li>
+<li><b>目标：</b>每回合系统随机指定目标牌（A/Q/K），本轮所出的牌都视作目标牌。</li>
+<li><b>出牌：</b>轮到你时打出 ≥1 张并宣称“都是目标牌”（可真可假）。</li>
+<li><b>质疑：</b>只有下家能点 <i>liar</i> 质疑上一家。</li>
+<li><b>判定：</b>只翻最近一次出牌；全中 → 质疑者失败；否则 → 出牌者失败。</li>
+<li><b>掷骰（失败者）：</b>掷到 <b>6</b> 立刻淘汰；非 6 记一次，<b>第二次掷到同点</b>也淘汰。</li>
+<li><b>两人对局：</b>若上一家把牌 <b>出完</b>，下家 <b>只能质疑</b>，不能出牌。</li>
+<li><b>三/四人对局：</b>若某人出完牌而下家<b>没有质疑</b>，该玩家本回合<b>被跳过</b>直到重发牌；后续只会有<b>一个失败者</b>掷骰。</li>
+<li><b>恶魔牌模式（可选）：</b>发牌时随机把<b>一张目标牌</b>变成恶魔牌（红字显示，<b>只能单出</b>）。若它被质疑，<b>除出牌者外</b>所有存活玩家依次掷骰一次；JOKER 不受影响。</li>
+<li><b>回合结束：</b>给所有存活者用新牌堆重新发起手，清桌面，随机新目标；由本次胜者先手。</li>
+<li><b>胜利：</b>场上仅剩 1 名存活者。</li>
+<li><b>观战/入座：</b>未入座即观战；对局中不能入座；一局结束后 Host 可回大厅重新选择座位再开始。</li>
+<li><b>聊天：</b>所有人可见，仅保留<b>本局</b>消息。</li>
+<li><b>房间号：</b>游戏内显示当前房间号，便于后续加入。</li>
+</ul>`;
+const RULES_EN = `
+<ul class="list-disc pl-5 space-y-1">
+<li><b>Deck:</b> A×6, Q×6, K×6, JOKER×2 (JOKER is wild).</li>
+<li><b>Start:</b> 2–4 seated players; default 5 cards each (host adjustable).</li>
+<li><b>Target:</b> Each round picks A/Q/K; played cards are claimed as target.</li>
+<li><b>Play:</b> On your turn, play ≥1 card and claim they match the target (truth or bluff).</li>
+<li><b>Challenge:</b> Only the <i>next</i> player may press <i>liar</i> to challenge the last batch.</li>
+<li><b>Reveal:</b> Flip <b>only</b> the last batch; all match → challenger loses; otherwise → player loses.</li>
+<li><b>Dice (loser):</b> Roll a d6. A roll of <b>6</b> = instant death; any other value repeats a second time = death.</li>
+<li><b>2 players:</b> If the previous player <b>emptied</b> their hand, the next player <b>must challenge</b>.</li>
+<li><b>3–4 players:</b> If someone emptied and the next player <b>did not</b> challenge, that player is <b>skipped</b> for the rest of the round. Only <b>one</b> loser rolls each showdown.</li>
+<li><b>Demon Card (optional):</b> One random target card becomes a <b>Demon</b> (red, <b>single-card only</b>). If challenged, <b>everyone except</b> its player rolls once; JOKER unaffected.</li>
+<li><b>Round end:</b> Re-deal fresh hands to all survivors, clear table, new target. Winner starts next round.</li>
+<li><b>Win:</b> Last survivor.</li>
+<li><b>Spectate/Seats:</b> Not seated = spectating; no seating during a game; after a game, host may return to lobby to re-seat.</li>
+<li><b>Chat:</b> Visible to all; kept for the <b>current game</b> only.</li>
+<li><b>Room ID:</b> Shown in-game for late joiners.</li>
+</ul>`;
+const TIPS_ZH = `
+<ul class="list-disc pl-5 space-y-1">
+<li><b>创建房间：</b>输入自定用户名后创建；房间号会出现在下一界面。</li>
+<li><b>加入房间：</b>输入用户名和 Host 提供的房间号（大写）。</li>
+<li><b>异常/未加载：</b>请先<b>刷新</b>浏览器；仍异常请<b>退出房间并重新加入</b>。</li>
+<li><b>人数超出牌堆：</b>Host 在大厅调小<b>座位数/起始手牌</b>。</li>
+</ul>`;
+const TIPS_EN = `
+<ul class="list-disc pl-5 space-y-1">
+<li><b>Create:</b> Enter a nickname; the Room ID appears on the next screen.</li>
+<li><b>Join:</b> Enter your nickname and the host’s Room ID (uppercase).</li>
+<li><b>Stuck/Not updating:</b> Try a <b>browser refresh</b>; if needed, <b>leave and rejoin</b> the room.</li>
+<li><b>Too many cards needed:</b> Host should lower <b>Seats/Start hand</b> in the lobby.</li>
+</ul>`;
+
 function applyStaticTexts(){
   document.documentElement.lang = LANG;
   document.getElementById('hdrBackTxt').textContent = t('back');
@@ -324,12 +391,20 @@ function applyStaticTexts(){
   document.getElementById('btnCreate').textContent = t('create');
   document.getElementById('btnJoin').textContent = t('join');
   document.getElementById('localNote').textContent = t('localNote');
+
+  document.getElementById('rulesSummary').textContent = t('rulesSummary');
+  document.getElementById('tipsSummary').textContent  = t('tipsSummary');
+  document.getElementById('rulesBody').innerHTML = LANG==='zh'?RULES_ZH:RULES_EN;
+  document.getElementById('tipsBody').innerHTML  = LANG==='zh'?TIPS_ZH:TIPS_EN;
+
   document.getElementById('lblRoomShow').textContent = t('roomShow');
   document.getElementById('lblRole').textContent = t('role');
   document.getElementById('lblSeats').textContent = t('seats');
   document.getElementById('lblStartHand').textContent = t('startHand');
+  document.getElementById('lblDemon').textContent = t('demonMode');
   document.getElementById('btnStart').textContent = t('start');
   document.getElementById('seatsTip').textContent = t('seatsTip');
+
   document.getElementById('lblRound').textContent = t('round');
   document.getElementById('lblTarget').textContent = t('target');
   document.getElementById('lblCurrent').textContent = t('current');
@@ -345,14 +420,11 @@ function applyStaticTexts(){
   document.getElementById('winText').textContent = t('winText');
   const ng = document.getElementById('btnNewGame'); if (ng) ng.textContent = t('newGame');
   const ng2 = document.getElementById('btnHostNewGame'); if (ng2) ng2.textContent = t('newGame');
-  // chat
-  const cw = document.getElementById('chatWrap');
-  if (cw){
-    document.getElementById('lblChat').textContent = t('chat');
-    document.getElementById('lblChatHint').textContent = t('chatHint');
-    document.getElementById('chatInput').placeholder = t('chatPh');
-    document.getElementById('btnSendChat').textContent = t('send');
-  }
+
+  document.getElementById('lblChat').textContent = t('chat');
+  document.getElementById('lblChatHint').textContent = t('chatHint');
+  document.getElementById('chatInput').placeholder = t('chatPh');
+  document.getElementById('btnSendChat').textContent = t('send');
 }
 
 /* ===================== Firebase 基础 ===================== */
@@ -401,11 +473,11 @@ async function tryAutoResume(){
     const stDoc = await roomRefs(ROOM_ID).state.get().catch(()=>null);
     const st = (stDoc && stDoc.exists) ? stDoc.data() : {};
     H = {
-      settings: lobbyDoc.data().settings || { seats:4, startHand:5 },
+      settings: lobbyDoc.data().settings || { seats:4, startHand:5, demon:false },
       players: (lobbyDoc.data().seats||[]).map(s=> s? { uid:s.uid, name:s.name, alive:s.alive!==false, rolls:s.rolls||[], rollMap:{}, hand:[] } : null),
       roundNo: st.roundNo||0, target: st.target||null, turn: st.turn||0,
       pot:[], awaitingReveal: st.awaitingReveal||false, challengerId:null, revealing:false,
-      gameNo: st.gameNo || 0
+      gameNo: st.gameNo || 0, safe:{}, justEmptied:null
     };
     attachCommonListeners();
     attachHostActionListener();
@@ -433,10 +505,26 @@ function toast(msg){ const tdiv=document.getElementById('toast'); tdiv.firstElem
 const TARGETS = ["A","Q","K"];
 const rnd = n => Math.floor(Math.random()*n);
 const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=rnd(i+1); [a[i],a[j]]=[a[j],a[i]];} return a; };
-function makeCustomDeck(){ const d=[]; d.push({r:"JOKER"},{r:"JOKER"}); for(let i=0;i<6;i++){d.push({r:"A"},{r:"Q"},{r:"K"});} return shuffle(d); }
+function makeCustomDeck(hasDemon=false){
+  const d=[]; d.push({r:"JOKER"},{r:"JOKER"});
+  const targetCards=[];
+  for(let i=0;i<6;i++){ targetCards.push({r:"A"},{r:"Q"},{r:"K"}); }
+  if (hasDemon){
+    const idx = rnd(targetCards.length); // 随机一张目标牌变恶魔
+    targetCards[idx].d = true;
+  }
+  return shuffle(d.concat(targetCards));
+}
 const isMatch = (c, target) => c.r==="JOKER" || c.r===target;
-function nextAliveFrom(state, idx){ const n=state.players.length; for(let k=1;k<=n;k++){const j=(idx+k)%n; if(state.players[j] && state.players[j].alive) return j;} return idx; }
-
+function nextAliveFrom(state, idx){
+  const n=state.players.length;
+  for(let k=1;k<=n;k++){
+    const j=(idx+k)%n;
+    const pj = state.players[j];
+    if(pj && pj.alive && !(state.safe && state.safe[pj.uid])) return j;
+  }
+  return idx;
+}
 function roomRefs(roomId){
   const room = db.collection('rooms').doc(roomId);
   return {
@@ -460,12 +548,11 @@ async function hostInit(roomId, name){
   await state.delete().catch(()=>{});
 
   H = {
-    settings:{ seats:4, startHand:5 },
+    settings:{ seats:4, startHand:5, demon:false },
     players: new Array(4).fill(null),
     roundNo:0, target:null, turn:0,
     pot:[], awaitingReveal:false, challengerId:null,
-    revealing:false,
-    gameNo: 0
+    revealing:false, gameNo:0, safe:{}, justEmptied:null
   };
   H.players[0] = { uid, name, alive:true, rolls:[], rollMap:{}, hand:[] };
 
@@ -559,10 +646,10 @@ async function hostRemoveSeat(guestUid){
   await writeLobby();
 }
 
-/* 设置即时生效（无需“应用设置”按钮） */
 async function hostApplySettings(){
   const newSeats = Math.max(2, Math.min(4, Number(document.getElementById("seatMax").value||4)));
   const startHand = Number(document.getElementById("startHand").value||5);
+  const demon = !!document.getElementById("demonMode").checked;
   const oldSeats = H.players.length;
   let arr = new Array(newSeats).fill(null);
   for (let i=0; i<Math.min(oldSeats, newSeats); i++) arr[i] = H.players[i] || null;
@@ -576,18 +663,18 @@ async function hostApplySettings(){
     arr[0] = hostObj;
   }
   H.players = arr;
-  H.settings = { seats: newSeats, startHand };
+  H.settings = { seats: newSeats, startHand, demon };
   await writeLobby();
 }
 
-/* 开始 / 新一局 / 回大厅 */
 async function hostStart(){
   const seated = H.players.filter(p=>p && p.alive);
   if (seated.length < 2){ toast(t('need2p')); return; }
 
-  H.gameNo = (H.gameNo||0) + 1; // 新局编号
+  H.gameNo = (H.gameNo||0) + 1;
+  H.safe = {}; H.justEmptied = null;
 
-  const deck = makeCustomDeck();
+  const deck = makeCustomDeck(!!H.settings.demon);
   if (seated.length * H.settings.startHand > deck.length){ toast(t('notEnough')); return; }
 
   for (const p of H.players){
@@ -605,11 +692,12 @@ async function hostStart(){
 }
 async function hostNewGame(){
   H.gameNo = (H.gameNo||0) + 1;
+  H.safe = {}; H.justEmptied = null;
 
   H.players = H.players.map(p => p ? { ...p, alive:true, rolls:[], rollMap:{}, hand:[] } : p);
 
   const seated = H.players.filter(p=>p);
-  const deck = makeCustomDeck();
+  const deck = makeCustomDeck(!!H.settings.demon);
   if (seated.length * H.settings.startHand > deck.length) {
     H.settings.startHand = Math.max(1, Math.floor(deck.length / seated.length));
   }
@@ -628,7 +716,7 @@ async function hostNewGame(){
 }
 async function hostBackToLobbyReset(){
   H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
-  H.target=null; H.turn=0;
+  H.target=null; H.turn=0; H.safe={}; H.justEmptied=null;
   H.players.forEach(p=>{ if(p){ p.alive=true; p.rolls=[]; p.rollMap={}; p.hand=[]; }});
   await sendHands();
   await writeLobby();
@@ -636,7 +724,7 @@ async function hostBackToLobbyReset(){
   enterLobbyUI();
 }
 
-/* Host 解散房间：删除整个房间及子集合 */
+/* Host 解散房间 */
 async function hostCloseRoom(){
   const { room, lobby, state, actions, events, hands } = roomRefs(ROOM_ID);
   async function delCol(col){
@@ -655,7 +743,6 @@ async function hostCloseRoom(){
   await room.delete().catch(()=>{});
 }
 
-/* 玩家离开（离开房间；若只剩 1 人则结算胜负） */
 async function hostRemovePlayer(guestUid){
   const idx = H.players.findIndex(p=>p && p.uid===guestUid);
   if (idx >= 0){
@@ -663,38 +750,60 @@ async function hostRemovePlayer(guestUid){
     H.players[idx] = null;
     if (wasTurn) H.turn = nextAliveFrom(H, idx);
   }
-  if (H.roundNo===0){
-    await writeLobby();
-    return;
-  }
+  if (H.roundNo===0){ await writeLobby(); return; }
   const alive = H.players.filter(p=>p && p.alive);
-  if (alive.length <= 1){
-    await writeState(true);
-  }else{
-    await writeLobby();
-    await writeState();
-  }
+  if (alive.length <= 1){ await writeState(true); }
+  else { await writeLobby(); await writeState(); }
+}
+
+function aliveCount(){ return H.players.filter(p=>p && p.alive).length; }
+function needForceLiarFor(uidX){
+  if (aliveCount() !== 2) return false;
+  if (!H.pot.length) return false;
+  const lastBy = H.pot[H.pot.length-1].by;
+  if (lastBy === uidX) return false;
+  const prev = H.players.find(p=>p && p.uid===lastBy);
+  return !!(prev && prev.hand.length===0);
 }
 
 async function hostPlay(_uid, indices){
+  if (needForceLiarFor(_uid)) return; // 两人强制质疑：禁止出牌
+
+  // 如果上一手有人刚出完且未被质疑，而现在换别人出牌 → 标记其为本回合安全（跳过）
+  if (H.justEmptied && H.justEmptied !== _uid){
+    H.safe[H.justEmptied] = true;
+    H.justEmptied = null;
+  }
+
   const seat = H.players.findIndex(p=>p && p.uid===_uid);
   if (seat !== H.turn) return;
   const p = H.players[seat]; if (!p || !p.alive) return;
   if (!Array.isArray(indices) || indices.length===0) return;
+
+  // 恶魔牌只能单出
+  const chosen = indices.map(i=>p.hand[i]);
+  if (chosen.some(c=>c && c.d) && indices.length!==1) return;
+
   const sorted = [...indices].sort((a,b)=>b-a);
   const cards=[]; for (const i of sorted){ if (i<0 || i>=p.hand.length) return; cards.push(p.hand.splice(i,1)[0]); }
+
   H.pot.push({by:p.uid, cards, declared:H.target});
   H.awaitingReveal=false; H.challengerId=null;
+
+  // 该玩家是否出完了？
+  if (p.hand.length===0) H.justEmptied = p.uid;
+
   H.turn = nextAliveFrom(H, H.turn);
 
   await handsSetOne(p.uid, p.hand);
   await writeState();
 }
 async function handsSetOne(uidX, hand){ const { hands } = roomRefs(ROOM_ID); await hands.doc(uidX).set({ ownerUid:uidX, hand }); }
-async function hostLiar(_uid){ H.challengerId = _uid; H.awaitingReveal = true; H.revealing = false; lastReveal = null; await writeState(); }
+async function hostLiar(_uid){ H.challengerId = _uid; H.awaitingReveal = true; H.revealing = false; H.justEmptied=null; lastReveal = null; await writeState(); }
 
 const DICE_TURNS = 14, DICE_BASE = 70, DICE_INC = 35, DICE_HOLD = 1000;
 function diceAnimMs(){ return (DICE_TURNS+1)*DICE_BASE + (DICE_TURNS*(DICE_TURNS+1)/2)*DICE_INC + DICE_HOLD; }
+
 async function hostReveal(){
   if (!H.awaitingReveal || H.pot.length===0 || H.revealing) return;
   H.revealing = true;
@@ -704,6 +813,31 @@ async function hostReveal(){
   await emitEvent("REVEAL_VIEW", { cards:last.cards.map(c=>({...c})) });
 
   setTimeout(async ()=>{
+    const demonPlayed = !!(H.settings.demon && last.cards.some(c=>c.d));
+
+    if (demonPlayed){
+      // 所有人（除出牌者）依次掷骰
+      const victims = H.players.filter(p=>p && p.alive && p.uid!==last.by);
+      let delay = 0;
+      for (const P of victims){
+        const roll = 1 + rnd(6);
+        setTimeout(()=> emitEvent("DICE_ANIM", { who:P.name, value:roll }), delay);
+        delay += diceAnimMs();
+        setTimeout(async ()=>{
+          P.rolls.push(roll); P.rollMap[roll]=(P.rollMap[roll]||0)+1;
+          const dieNow = (roll===6) || (P.rollMap[roll]>=2);
+          if (dieNow){ P.alive=false; P.hand=[]; await handsSetOne(P.uid, P.hand); }
+          await emitEvent("DICE_RESULT", { who:P.name, uid:P.uid, value:roll, died:dieNow });
+        }, delay);
+        delay += 120;
+      }
+      // 胜者为出恶魔牌的玩家，下一回合从其开始
+      const startSeat = H.players.findIndex(p=>p && p.uid===last.by);
+      setTimeout(async ()=>{ await redealFrom(startSeat); H.revealing=false; }, delay+400);
+      return;
+    }
+
+    // 原规则
     const truthful = last.cards.every(c=>isMatch(c, H.target));
     const loserId  = truthful ? H.challengerId : last.by;
     const winnerId = truthful ? last.by : H.challengerId;
@@ -728,13 +862,16 @@ async function hostReveal(){
     }, diceAnimMs());
   }, 3000);
 }
+
 async function redealFrom(startIndex){
   H.awaitingReveal = false;
   H.revealing = false;
+  H.safe = {}; H.justEmptied = null;
+
   const alive = H.players.filter(p=>p && p.alive);
   if (alive.length<=1){ await writeState(true); return; }
 
-  const deck = makeCustomDeck();
+  const deck = makeCustomDeck(!!H.settings.demon);
   const need = alive.length * H.settings.startHand;
   if (need > deck.length){ H.settings.startHand = Math.max(1, Math.floor(deck.length / alive.length)); }
   for (const p of H.players){
@@ -744,8 +881,7 @@ async function redealFrom(startIndex){
   H.pot=[]; H.target = TARGETS[rnd(TARGETS.length)];
   H.roundNo = (H.roundNo||0)+1;
   H.turn = startIndex;
-  H.awaitingReveal=false; H.challengerId=null;
-  lastReveal = null; lastTurnUid = null;
+  H.challengerId=null; lastReveal = null; lastTurnUid = null;
 
   await sendHands();
   await writeLobby();
@@ -778,13 +914,11 @@ function attachHostActionListener(){
           case 'HOST_START':     if (a.uid===uid) await hostStart(); break;
           case 'HOST_NEW_GAME':  if (a.uid===uid) await hostNewGame(); break;
           case 'BACK_TO_LOBBY':  await hostBackToLobbyReset(); break;
-          case 'CHAT':           // 转发为事件，带上 localId 以便去重
+          case 'CHAT':
             await emitEvent("CHAT", { uid:a.uid, name:a.name, text:(a.text||'').toString().slice(0,400), gameNo: H.gameNo||0, localId: a.localId||null });
             break;
         }
-      } finally {
-        await doc.ref.update({ processed:true, processedBy: uid });
-      }
+      } finally { await doc.ref.update({ processed:true, processedBy: uid }); }
     }
   }, err=>{
     console.error('Actions listener error:', err);
@@ -793,7 +927,7 @@ function attachHostActionListener(){
   hasHostAction = true;
 }
 
-/* ===================== 公用监听 & 聊天（基于 events） ===================== */
+/* ===================== 公用监听 & 聊天 ===================== */
 let unsubLobby=null, unsubState=null, unsubEvents=null, unsubMyHand=null;
 let chatCache = [];      // 已到达的聊天事件或本地占位
 let L=null, S=null, myHand=[], myHandHash="";
@@ -803,7 +937,7 @@ const processedEvents = new Set();
 function attachCommonListeners(){
   const { lobby, state, events, hands } = roomRefs(ROOM_ID);
 
-  // 进入新房间：清空聊天和事件去重缓存
+  // 新房间：清空聊天和事件缓存
   chatCache = [];
   processedEvents.clear();
   const chatListEl = document.getElementById('chatList'); if (chatListEl) chatListEl.innerHTML = '';
@@ -821,6 +955,12 @@ function attachCommonListeners(){
     document.getElementById("btnLeaveRoom").classList.toggle("hidden", isHost);
 
     if (isHost && !hasHostAction) attachHostActionListener();
+
+    // 同步恶魔模式勾选
+    if (isHost){
+      const dm = document.getElementById('demonMode');
+      if (dm) dm.checked = !!(L.settings && L.settings.demon);
+    }
 
     renderLobbyLocal(L);
     document.getElementById("roomShow").textContent = ROOM_ID;
@@ -853,13 +993,11 @@ function attachCommonListeners(){
 
       if (e.type === "CHAT"){
         const p = e.payload||{};
-        // 去重：移除本地占位（localId 或者 uid+text+gameNo）
         chatCache = chatCache.filter(m=>{
           if (!m.__local) return true;
           if (p.localId && m.localId === p.localId) return false;
           return !(m.uid===p.uid && m.text===p.text && (m.gameNo||0)===(p.gameNo||0));
         });
-        // 推入服务器消息
         chatCache.push({ id, ...p, ts: e.ts });
         renderChat();
         return;
@@ -887,7 +1025,7 @@ function attachCommonListeners(){
   unsubMyHand = hands.doc(auth.currentUser.uid).onSnapshot((doc)=>{
     if (!doc.exists) { myHand=[]; myHandHash=""; renderAll(); return; }
     const h = doc.data()?.hand || [];
-    const newHash = h.map(c=>c.r).join('|');
+    const newHash = h.map(c=> (c.d?'*':'') + c.r ).join('|');
     if (newHash !== myHandHash){
       myHand = h; myHandHash = newHash;
       selectedIndices.clear();
@@ -898,21 +1036,17 @@ function attachCommonListeners(){
   });
 }
 
-/* 聊天发送（actions → Host 转 events），本地占位去重 */
+/* 聊天发送（actions → Host 转 events） */
 function genLocalId(){ return 'loc_'+Math.random().toString(36).slice(2,9); }
 async function sendChat(text){
   if (!text || !text.trim()) return;
   await ensureAuth();
   const clean = text.trim().slice(0, 400);
   const localId = genLocalId();
-  // 本地乐观占位（立即显示）
   chatCache.push({ uid: auth.currentUser.uid, name: me.name, text: clean, gameNo: (S&&S.gameNo)||0, ts: {seconds: Math.floor(Date.now()/1000)}, __local:true, localId });
   renderChat();
-  // 发给 Host 转事件（带 localId 让对端去重）
   await sendAction({ type:'CHAT', text: clean, localId });
 }
-
-/* 聊天渲染：按 gameNo 过滤并滚底，严格用时间排序 */
 function tsMs(ts){
   if (!ts) return 0;
   if (typeof ts.toMillis === 'function') return ts.toMillis();
@@ -920,20 +1054,16 @@ function tsMs(ts){
   return +new Date();
 }
 function renderChat(){
-  const cw = document.getElementById('chatWrap');
-  if (!cw) return;
+  const cw = document.getElementById('chatWrap'); if (!cw) return;
   const list = document.getElementById('chatList');
   const gameNo = (S && S.gameNo) || 0;
-
   const msgs = chatCache.filter(m => (m.gameNo||0) === gameNo);
   msgs.sort((a,b)=>{
     const ta = tsMs(a.ts), tb = tsMs(b.ts);
     if (ta !== tb) return ta - tb;
-    // 次级：有 id 的（服务器）排在占位前
     if (!!a.__local !== !!b.__local) return a.__local ? 1 : -1;
     return (a.id||'').localeCompare(b.id||'');
   });
-
   list.innerHTML = '';
   msgs.forEach(m=>{
     const div = document.createElement('div');
@@ -1022,17 +1152,14 @@ function renderLobbyLocal(lobby){
   document.getElementById("roomShow").textContent = ROOM_ID;
 }
 
-/* 只有当 roundNo>0 才进入游戏页；否则保持大厅 */
 function renderAll(){
   if (!S){ enterLobbyUI(); return; }
-
   const activeRound = (S.roundNo||0) > 0;
   if (!activeRound){
     enterLobbyUI();
     if (L) renderLobbyLocal(L);
     return;
   }
-
   if (!S.awaitingReveal) lastReveal = null;
 
   const winnerWrap = document.getElementById("winnerWrap");
@@ -1042,9 +1169,7 @@ function renderAll(){
     const ng = document.getElementById('btnNewGame');
     if (ng) ng.classList.toggle('hidden', !isHost);
     launchConfetti();
-  } else {
-    winnerWrap.classList.add("hidden");
-  }
+  } else winnerWrap.classList.add("hidden");
 
   enterGameUI();
   document.getElementById("roundNo").textContent = S.roundNo||1;
@@ -1098,9 +1223,10 @@ function renderAll(){
         const holder=document.createElement('div'); holder.className="card";
         const inner=document.createElement('div'); inner.className="inner";
         if (isRevealBatch && lastReveal[k]){
-          const r = lastReveal[k].r;
+          const r = lastReveal[k].r, isD = !!lastReveal[k].d;
           inner.innerHTML = cardFrontHTML(r)+cardBackHTML();
           if (r==="JOKER") holder.classList.add('joker');
+          if (isD) holder.classList.add('demon');
           holder.classList.add('face-back','revealable');
         } else {
           inner.innerHTML = cardFrontHTML('?')+cardBackHTML();
@@ -1123,13 +1249,19 @@ function renderAll(){
   document.getElementById("lastClaim").textContent = S.lastClaim ? t('recent', (S.players.find(p=>p&&p.uid===S.lastClaim.by)||{}).name||t('unknown'), S.lastClaim.count) : "—";
   if (S.lastClaim) potFlashOnce();
 
-  const amIturn = (currentPlayer && currentPlayer.uid===auth.currentUser.uid && currentPlayer.alive);
+  const myUid = auth.currentUser && auth.currentUser.uid;
+  const amIturn = (currentPlayer && currentPlayer.uid===myUid && currentPlayer.alive);
   const prevBy = S.lastClaim ? S.lastClaim.by : null;
 
+  // 两人强制质疑：若上家出完，当前只能 liar
+  const aliveN = (S.players||[]).filter(p=>p&&p.alive).length;
+  const prevP = prevBy ? (S.players.find(p=>p && p.uid===prevBy)||null) : null;
+  const mustLiar = amIturn && !S.awaitingReveal && S.pot.length>0 && prevBy && prevBy!==myUid && aliveN===2 && prevP && prevP.handCount===0;
+
   const liarBtn = document.getElementById("btnLiar");
-  const canLiar = amIturn && !S.awaitingReveal && S.pot.length>0 && prevBy && prevBy!==auth.currentUser.uid;
-  liarBtn.disabled = !canLiar;
-  liarBtn.classList.toggle('hidden', !canLiar);
+  const canLiar = amIturn && !S.awaitingReveal && S.pot.length>0 && prevBy && prevBy!==myUid;
+  liarBtn.disabled = !(canLiar || mustLiar);
+  liarBtn.classList.toggle('hidden', !(canLiar || mustLiar));
 
   const revealBtn = document.getElementById("btnReveal");
   const canReveal = S.awaitingReveal && amIturn;
@@ -1137,16 +1269,16 @@ function renderAll(){
   revealBtn.disabled = !canReveal;
 
   const playBtn = document.getElementById("btnPlay");
-  playBtn.disabled = S.awaitingReveal || !amIturn || (myHand.length===0);
+  playBtn.disabled = S.awaitingReveal || !amIturn || (myHand.length===0) || mustLiar;
 
   document.getElementById("yourTurnTag").classList.toggle("hidden", !amIturn);
 
   const nowTurnUid = currentPlayer ? currentPlayer.uid : null;
-  if (nowTurnUid === (auth.currentUser && auth.currentUser.uid) && lastTurnUid !== (auth.currentUser && auth.currentUser.uid)){ toast(t('toastTurn')); }
+  if (nowTurnUid === myUid && lastTurnUid !== myUid){ toast(t('toastTurn')); }
   lastTurnUid = nowTurnUid;
 
   renderHandOnly();
-  renderChat(); // 刷新聊天（按 gameNo）
+  renderChat();
 }
 
 function glyphFor(r){ switch(r){ case 'A': return '✪'; case 'K': return '♚'; case 'Q': return '👑'; case 'JOKER': return '🃏'; default: return ''; } }
@@ -1238,18 +1370,32 @@ function renderHandOnly(){
   const handDiv = document.getElementById("hand"); if (!handDiv) return;
   handDiv.innerHTML = "";
   const sel = selectedIndices;
+
   (myHand||[]).forEach((card, idx)=>{
-    const holder=document.createElement('div'); holder.className="card"+(card.r==="JOKER"?" joker":"")+(sel.has(idx)?" sel":"");
+    const holder=document.createElement('div');
+    holder.className="card"+(card.r==="JOKER"?" joker":"")+(card.d?" demon":"")+(sel.has(idx)?" sel":"");
     const inner=document.createElement('div'); inner.className="inner";
     inner.innerHTML = cardFrontHTML(card.r)+cardBackHTML();
     holder.appendChild(inner);
+
     holder.onclick = ()=>{
-      if (sel.has(idx)) sel.delete(idx); else sel.add(idx);
+      // 恶魔牌：只能单选
+      if (card.d){
+        sel.clear();
+        sel.add(idx);
+      }else{
+        // 如果已选择的是恶魔牌，清空后再选普通牌
+        const hasDemonSel = Array.from(sel).some(i => myHand[i] && myHand[i].d);
+        if (hasDemonSel) sel.clear();
+        if (sel.has(idx)) sel.delete(idx); else sel.add(idx);
+      }
       document.getElementById("btnPlay").textContent = t('play', sel.size);
-      holder.classList.toggle("sel");
+      // 切换样式
+      document.querySelectorAll('#hand .card').forEach((el,k)=> el.classList.toggle('sel', sel.has(k)));
     };
     handDiv.appendChild(holder);
   });
+
   document.getElementById("btnPlay").textContent = t('play', sel.size);
 }
 
@@ -1271,7 +1417,7 @@ async function leaveRoomLocal(){
   document.getElementById("hostPanel").classList.add('hidden');
   document.getElementById("lobby").classList.add('hidden');
   document.getElementById("game").classList.add('hidden');
-  document.getElementById("connect").classList.remove('hidden');
+  document.getElementById("connect").classList.remove("hidden");
   toast(LANG==='zh' ? '已退出房间' : 'Left the room');
 }
 async function closeRoomAndLeave(){
@@ -1294,42 +1440,29 @@ document.getElementById("btnJoin").onclick = async ()=>{
   applyStaticTexts();
 };
 
-/* 顶部按钮 */
 document.getElementById("btnResetAll").onclick = async ()=>{ if (isHost) await closeRoomAndLeave(); else await leaveRoomLocal(); };
 document.getElementById("btnLeaveRoom").onclick = leaveRoomLocal;
 
-/* 设置与开始 */
 async function applySettingsLocal(){ if (!isHost) return; await hostApplySettings(); }
 async function startLocal(){ if (!isHost) return; await hostStart(); }
 document.getElementById("seatMax").addEventListener("change", applySettingsLocal);
 document.getElementById("startHand").addEventListener("change", applySettingsLocal);
+document.getElementById("demonMode").addEventListener("change", applySettingsLocal);
 document.getElementById("btnStart").onclick = startLocal;
 
-/* 游戏内 Host 新一局 */
-document.getElementById("btnHostNewGame").onclick = async ()=>{
-  if (isHost) await hostNewGame(); else await sendAction({ type:'HOST_NEW_GAME' });
-};
+document.getElementById("btnHostNewGame").onclick = async ()=>{ if (isHost) await hostNewGame(); else await sendAction({ type:'HOST_NEW_GAME' }); };
 
-/* 胜利弹窗按钮（继续或回大厅） */
 document.getElementById("btnNewGame").onclick = async ()=>{
   document.getElementById("winnerWrap").classList.add("hidden");
-  if (isHost) { await hostNewGame(); }
-  else { await sendAction({ type:'HOST_NEW_GAME' }); }
+  if (isHost) { await hostNewGame(); } else { await sendAction({ type:'HOST_NEW_GAME' }); }
 };
-document.getElementById("btnBackLobby").onclick = async ()=>{
-  document.getElementById("winnerWrap").classList.add("hidden");
-  await sendAction({ type:'BACK_TO_LOBBY' });
-};
+document.getElementById("btnBackLobby").onclick = async ()=>{ document.getElementById("winnerWrap").classList.add("hidden"); await sendAction({ type:'BACK_TO_LOBBY' }); };
 
-/* 出牌 / liar / reveal */
 document.getElementById("btnPlay").onclick = async ()=>{
   if (selectedIndices.size===0) return toast(t('needOne'));
   const handDiv = document.getElementById("hand");
   const idxs = Array.from(selectedIndices).sort((a,b)=>a-b);
-  idxs.forEach(i=>{
-    const el = handDiv.children[i];
-    if (el) el.classList.add('burst');
-  });
+  idxs.forEach(i=>{ const el = handDiv.children[i]; if (el) el.classList.add('burst'); });
   document.getElementById("btnPlay").disabled = true;
   setTimeout(async ()=>{
     await sendAction({ type:'PLAY', indices: idxs });
@@ -1351,7 +1484,7 @@ document.getElementById("btnReveal").onclick = async ()=>{
   finally { setTimeout(()=>{ br.disabled = false; }, 5000); }
 };
 
-/* 聊天发送（Enter 发送；观战者也能发） */
+/* 聊天 */
 document.getElementById('btnSendChat').onclick = async ()=>{
   const inp = document.getElementById('chatInput');
   const v = inp.value;
@@ -1360,10 +1493,7 @@ document.getElementById('btnSendChat').onclick = async ()=>{
   await sendChat(v);
 };
 document.getElementById('chatInput').addEventListener('keydown', async (e)=>{
-  if (e.key==='Enter'){
-    e.preventDefault();
-    document.getElementById('btnSendChat').click();
-  }
+  if (e.key==='Enter'){ e.preventDefault(); document.getElementById('btnSendChat').click(); }
 });
 
 document.getElementById("langSel").addEventListener("change", (e)=>{
@@ -1374,11 +1504,8 @@ document.getElementById("langSel").addEventListener("change", (e)=>{
   if (S) renderAll();
 });
 
-// 页面加载：登录后尝试恢复会话；恢复失败就停在创建/加入页
-ensureAuth()
-  .then(()=> tryAutoResume())
-  .catch(()=>{})
-  .finally(()=> applyStaticTexts());
+// 页面加载
+ensureAuth().then(()=> tryAutoResume()).catch(()=>{}).finally(()=> applyStaticTexts());
 </script>
 </body>
 </html>
