@@ -264,7 +264,7 @@ const i18n = {
     round:"回合：", target:"目标：", current:"当前：", yourTurn:"你的回合",
     table:"桌面", recent:(name,c)=>`最近：${name} × ${c}`, myHand:"我的手牌（点击选择任意张）", actions:"操作",
     play:c=>`出牌（${c}）`, liar:"liar", reveal:"翻开判定",
-    revealHint:"只翻最近一次出牌，3 秒后判定并出现掷骰动画；失败者掷到 6 立刻死亡，或掷到同点第二次死亡。",
+    revealHint:"只翻最近一次出牌，3 秒后判定并出现掷骰动画；失败者掷到 6 立刻死亡，或 2 次掷到同点则死亡。",
     handCount:c=>`手牌 ${c}`, diceList:r=>`骰：${r}`, playing:"出牌中", unknown:"未知",
     toastTurn:"你的回合", needOne:"请选择至少 1 张", need2p:"至少需要 2 名玩家入座",
     notEnough:"牌不够，请调小起始手牌或座位数",
@@ -775,7 +775,7 @@ function attachCommonListeners(){
     // 房间关闭：所有客户端自动退出
     if (L.closed && ROOM_ID){
       alert(LANG==='zh' ? '房间已关闭' : 'Room closed by host');
-      leaveRoomLocal(true);
+      leaveRoomLocal();
       return;
     }
 
@@ -797,6 +797,11 @@ function attachCommonListeners(){
   unsubState = state.onSnapshot((doc)=>{
     if (!doc.exists) return;
     S = doc.data();
+
+    // —— 根据状态决定当前显示页面 —— 
+    const started = (S.roundNo||0) > 0 || !!S.target;
+    if (started) enterGameUI(); else enterLobbyUI();
+
     renderAll();
   }, err=>{
     console.error('State listen error:', err);
@@ -894,6 +899,7 @@ function renderLobbyLocal(lobby){
     const cell = document.createElement('div'); cell.className = "rounded-xl p-3 border border-[#334155] bg-[#0b142a]";
     const occupant = lobby.seats[i];
     if (occupant){
+      // 非 Host 的本人可离座
       const canLeave = (occupant.uid === (auth.currentUser && auth.currentUser.uid)) && (occupant.uid !== lobby.hostUid);
       cell.innerHTML = `<div class="font-semibold mb-1">${t('seatN', i+1)}</div>
         <div class="opacity-90">${occupant.name}</div>
@@ -921,10 +927,6 @@ function renderLobbyLocal(lobby){
 function renderAll(){
   if (!S) return;
   if (!S.awaitingReveal) lastReveal = null;
-
-  // 只在“游戏界面可见”时才进入游戏区（修复语言切换带回牌桌的问题）
-  const gameVisible = !document.getElementById('game').classList.contains('hidden');
-  if (!gameVisible) return;
 
   // “新一局”按钮仅当已开始游戏才显示，且仅 Host
   const ngHost = document.getElementById('btnHostNewGame');
@@ -1152,19 +1154,23 @@ function detachAll(){
   unsubMyHand && unsubMyHand(); unsubMyHand=null;
   unsubChat && unsubChat(); unsubChat=null;
 }
-async function leaveRoomLocal(silent){
+async function leaveRoomLocal(){
   try {
-    if (!silent) await sendAction({ type:'LEAVE_ROOM' });
-  } catch(e){}
-  detachAll();
-  localStorage.removeItem('lb_session');
-  ROOM_ID = null; isHost = false; myHand=[]; myHandHash=""; lastReveal=null; lastTurnUid=null;
-  document.getElementById("hostPanel").classList.add('hidden');
-  document.getElementById("lobby").classList.add('hidden');
-  document.getElementById("game").classList.add('hidden');
-  document.getElementById("connect").classList.remove('hidden');
-  document.getElementById("btnLeaveRoom").classList.add('hidden');
-  toast(LANG==='zh' ? '已退出房间' : 'Left the room');
+    // 如果是 Guest，通知 Host 释放席位
+    if (!isHost && ROOM_ID) {
+      try { await sendAction({ type:'LEAVE_ROOM' }); } catch(e){}
+    }
+  } finally {
+    detachAll();
+    localStorage.removeItem('lb_session');
+    ROOM_ID = null; isHost = false; myHand=[]; myHandHash=""; lastReveal=null; lastTurnUid=null;
+    document.getElementById("hostPanel").classList.add('hidden');
+    document.getElementById("lobby").classList.add('hidden');
+    document.getElementById("game").classList.add('hidden');
+    document.getElementById("connect").classList.remove('hidden');
+    document.getElementById("btnLeaveRoom").classList.add('hidden');
+    toast(LANG==='zh' ? '已退出房间' : 'Left the room');
+  }
 }
 
 /* ===================== 聊天发送（乐观更新 + ct 排序字段） ===================== */
@@ -1210,12 +1216,12 @@ document.getElementById("btnJoin").onclick = async ()=>{
   applyStaticTexts();
 };
 
-/* 顶栏“退出房间”：Host 会先关闭房间 */
+/* 顶栏“退出房间”：Host 先关闭房间，Guest 发送离房动作 */
 document.getElementById("btnLeaveRoom").onclick = async ()=>{
   if (isHost && ROOM_ID){
     await hostCloseRoom();
   }
-  await leaveRoomLocal(true);
+  await leaveRoomLocal();
 };
 
 /* 自动应用设置（保留，下拉/输入即应用）；按钮已隐藏 */
@@ -1290,14 +1296,13 @@ document.getElementById('chatInput').addEventListener('keydown', async (e)=>{
   }
 });
 
-/* 语言切换：只在游戏界面当前可见时才渲染游戏（修复跳回问题） */
+/* 语言切换：避免跳回旧牌局界面 */
 document.getElementById("langSel").addEventListener("change", (e)=>{
   LANG = e.target.value;
   localStorage.setItem('lb_lang', LANG);
   applyStaticTexts();
   if (L) renderLobbyLocal(L);
-  const gameVisible = !document.getElementById('game').classList.contains('hidden');
-  if (S && gameVisible) renderAll();
+  if (S) renderAll(); // 只重绘，不强制切屏；切屏逻辑由 state 监听决定
 });
 
 // 页面加载：登录后尝试恢复会话；恢复失败就停在创建/加入页
