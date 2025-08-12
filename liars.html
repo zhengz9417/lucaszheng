@@ -40,7 +40,6 @@
     .dead{opacity:.55;filter:grayscale(.35)}
     .ping{position:relative}
     .ping::after{content:"";position:absolute;inset:-4px;border-radius:999px;border:2px solid var(--okay);opacity:.4;animation:ping 1.2s cubic-bezier(0,0,.2,1) infinite}
-    @keyframes ping{0%{transform:scale(1);opacity:.4} 100%{transform:scale(1.5);opacity:0}}
 
     .felt{ border:1px solid #335244; border-radius:14px; padding:16px;
       background:
@@ -84,7 +83,6 @@
     .dice{ width:120px; height:120px; border-radius:20px; background:linear-gradient(180deg,#1f2937,#111827);
       border:1px solid #93c5fd55; box-shadow:0 20px 60px rgba(59,130,246,.35), inset 0 3px 0 rgba(255,255,255,.06);
       display:grid; place-items:center; animation:pop .55s cubic-bezier(.2,.8,.2,1); }
-    @keyframes pop{0%{transform:scale(.6);opacity:.0} 100%{transform:scale(1);opacity:1}}
 
     .smoke-layer{position:fixed; inset:0; pointer-events:none; z-index:40; overflow:hidden;}
     .puff{position:absolute; bottom:-60px; width:120px; height:120px; border-radius:50%;
@@ -608,8 +606,10 @@ async function writeLobby(){
   const { lobby } = roomRefs(ROOM_ID);
   const seatedPlayers = H.players.filter(p=>p && p.alive);
   const canStart = seatedPlayers.length >= 2;
+  const doc = await lobby.get().catch(()=>null);
+  const curHost = (doc && doc.exists && doc.data().hostUid) ? doc.data().hostUid : uid;
   await lobby.set({
-    hostUid: (await lobby.get()).data()?.hostUid || uid,
+    hostUid: curHost,
     settings: H.settings,
     seats: H.players.map(p=> p ? {uid:p.uid, name:p.name, alive:p.alive, rolls:p.rolls} : null),
     canStart
@@ -665,20 +665,20 @@ async function hostApplySettings(){
   const startHand = Number(document.getElementById("startHand").value||5);
   const demon = !!document.getElementById("demonMode").checked;
   const oldSeats = H.players.length;
+
+  // 重新塑形 seats，始终保证 Host 在 0 号位
   let arr = new Array(newSeats).fill(null);
-  for (let i=0; i<Math.min(oldSeats, newSeats); i++) arr[i] = H.players[i] || null;
-  if (!arr[0] || arr[0].uid !== uid){
-    const idx = (H.players||[]).findIndex(p=>p && p.uid===uid);
-    const hostObj = idx>=0 ? H.players[idx] : { uid, name: me.name, alive:true, rolls:[], rollMap:{}, hand:[] };
-    if (arr[0] && arr[0].uid !== uid){
-      const firstEmpty = arr.findIndex(x=>x===null);
-      if (firstEmpty >= 1) arr[firstEmpty] = arr[0];
-    }
-    arr[0] = hostObj;
-  }
+  // 先把现有玩家按原顺序塞进去（跳过 host，最后再放 host 到 0）
+  const others = (H.players||[]).filter(p=>p && p.uid!==uid);
+  for (let i=1, k=0; i<newSeats && k<others.length; i++, k++) arr[i] = others[k];
+
+  // 放 host 到 0
+  arr[0] = { ...(H.players.find(p=>p && p.uid===uid) || { uid, name: me.name, alive:true, rolls:[], rollMap:{}, hand:[] }) };
+
   H.players = arr;
   H.settings = { seats: newSeats, startHand, demon };
-  await writeLobby();
+  await writeLobby();          // ✅ canStart 会被正确刷新
+  await writeState(false);     // ✅ 清状态到大厅视图（roundNo 仍为 0 时只作为展示）
 }
 
 /* ✅ 强制质疑：仅当“全场只有当前玩家有牌 && 上家刚出完牌(0张)”时成立 */
@@ -690,11 +690,8 @@ function needForceLiarFor(uidX){
   const lastP = H.players.find(p=>p && p.uid===lastBy);
   if (!lastP) return false;
 
-  // 只有当前玩家还握有手牌？
   const holders = H.players.filter(p=>p && p.alive && p.hand && p.hand.length>0).map(p=>p.uid);
   const onlyCurrentHasCards = (holders.length===1 && holders[0]===uidX);
-
-  // 上家刚把牌出完（此时 pot 的 lastBy 手牌为 0）
   const lastJustEmptied = lastP.hand && lastP.hand.length===0;
 
   return onlyCurrentHasCards && lastJustEmptied;
@@ -707,7 +704,6 @@ async function hostStart(){
   H.gameNo = (H.gameNo||0) + 1;
   H.safe = {}; H.justEmptied = null;
 
-  // 先决定目标，再生成与目标匹配的恶魔牌
   H.target = TARGETS[rnd(TARGETS.length)];
   const deck = makeCustomDeck(!!H.settings.demon, H.target);
   if (seated.length * H.settings.startHand > deck.length){ toast(t('notEnough')); return; }
@@ -721,6 +717,7 @@ async function hostStart(){
   H.pot = []; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
 
   await sendHands();
+  await writeLobby();  // ✅ 确保 Lobby 快照中的 canStart/座位映射与开始后状态同步
   await writeState();
   showSmoke();
 }
@@ -751,12 +748,13 @@ async function hostNewGame(){
 }
 
 async function hostBackToLobbyReset(){
+  // ✅ 回到大厅：彻底复位为可重新入座/开始的状态
   H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
   H.target=null; H.turn=0; H.safe={}; H.justEmptied=null;
   H.players.forEach(p=>{ if(p){ p.alive=true; p.rolls=[]; p.rollMap={}; p.hand=[]; }});
   await sendHands();
-  await writeLobby();
-  await writeState();
+  await writeLobby();      // 计算 canStart
+  await writeState(false); // 把 roundNo=0 的状态写出去，前端会展示大厅
   enterLobbyUI();
 }
 
@@ -795,9 +793,8 @@ async function hostRemovePlayer(guestUid){
 function aliveCount(){ return H.players.filter(p=>p && p.alive).length; }
 
 async function hostPlay(_uid, indices){
-  if (needForceLiarFor(_uid)) return; // ✅ 仅在“最后持牌者且上家刚出完”时禁止出牌
+  if (needForceLiarFor(_uid)) return;
 
-  // 若上一手有人刚出完且未被质疑，当前有人选择继续出牌 → 标记其为安全（被跳过）
   if (H.justEmptied && H.justEmptied !== _uid){
     H.safe[H.justEmptied] = true;
     H.justEmptied = null;
@@ -818,7 +815,6 @@ async function hostPlay(_uid, indices){
   H.pot.push({by:p.uid, cards, declared:H.target});
   H.awaitingReveal=false; H.challengerId=null;
 
-  // 此玩家是否出完？
   if (p.hand.length===0) H.justEmptied = p.uid;
 
   H.turn = nextAliveFrom(H, H.turn);
@@ -832,7 +828,7 @@ async function hostLiar(_uid){
   H.challengerId = _uid;
   H.awaitingReveal = true;
   H.revealing = false;
-  H.justEmptied=null; // 有质疑则不触发“安全跳过”
+  H.justEmptied=null;
   lastReveal = null;
   await writeState();
 }
@@ -852,7 +848,6 @@ async function hostReveal(){
     const demonPlayed = !!(H.settings.demon && last.cards.some(c=>c.d));
 
     if (demonPlayed){
-      // 所有人（除出牌者）依次掷骰
       const victims = H.players.filter(p=>p && p.alive && p.uid!==last.by);
       let delay = 0;
       for (const P of victims){
@@ -872,7 +867,6 @@ async function hostReveal(){
       return;
     }
 
-    // 原判定
     const truthful = last.cards.every(c=>isMatch(c, H.target));
     const loserId  = truthful ? H.challengerId : last.by;
     const winnerId = truthful ? last.by : H.challengerId;
@@ -906,7 +900,6 @@ async function redealFrom(startIndex){
   const alive = H.players.filter(p=>p && p.alive);
   if (alive.length<=1){ await writeState(true); return; }
 
-  // 新回合先选目标，再发带恶魔牌的牌堆
   H.target = TARGETS[rnd(TARGETS.length)];
   const deck = makeCustomDeck(!!H.settings.demon, H.target);
 
@@ -965,9 +958,10 @@ function attachHostActionListener(){
   hasHostAction = true;
 }
 
-/* ===================== 公用监听 & 聊天 ===================== */
+/* ===================== 公用监听 & 聊天（顺序修复） ===================== */
 let unsubLobby=null, unsubState=null, unsubEvents=null, unsubMyHand=null;
 let chatCache = [];
+let chatArriveSeq = 0;   // ✅ 本地到达序号
 let L=null, S=null, myHand=[], myHandHash="";
 let lastReveal=null, lastTurnUid=null;
 const processedEvents = new Set();
@@ -977,6 +971,7 @@ function attachCommonListeners(){
 
   // 新房间：清空聊天和事件缓存
   chatCache = [];
+  chatArriveSeq = 0; // ✅
   processedEvents.clear();
   const chatListEl = document.getElementById('chatList'); if (chatListEl) chatListEl.innerHTML = '';
 
@@ -1022,23 +1017,43 @@ function attachCommonListeners(){
   unsubEvents && unsubEvents();
   unsubEvents = events.orderBy('ts').limitToLast(300).onSnapshot((qs)=>{
     qs.docChanges().forEach(ch=>{
-      if (ch.type !== 'added') return;
-      const id = ch.doc.id; if (processedEvents.has(id)) return;
-      processedEvents.add(id);
+      const id = ch.doc.id;
       const e = ch.doc.data();
       if (!e || !e.type) return;
 
+      // ✅ 聊天：处理 added + modified（不使用 processedEvents 去重）
       if (e.type === "CHAT"){
-        const p = e.payload||{};
-        chatCache = chatCache.filter(m=>{
-          if (!m.__local) return true;
-          if (p.localId && m.localId === p.localId) return false;
-          return !(m.uid===p.uid && m.text===p.text && (m.gameNo||0)===(p.gameNo||0));
-        });
-        chatCache.push({ id, ...p, ts: e.ts });
+        const p = e.payload || {};
+        if (ch.type === 'removed') {
+          const idx = chatCache.findIndex(m => m.id === id);
+          if (idx >= 0) chatCache.splice(idx, 1);
+          renderChat();
+          return;
+        }
+        const existIdx = chatCache.findIndex(m => m.id === id);
+        if (existIdx >= 0) {
+          const old = chatCache[existIdx];
+          chatCache[existIdx] = { ...old, ...p, ts: e.ts, __local:false, id };
+        } else {
+          let localIdx = -1;
+          if (p.localId) localIdx = chatCache.findIndex(m => m.__local && m.localId === p.localId);
+          const base = { id, ...p, ts: e.ts, __local:false };
+          if (localIdx >= 0) {
+            base.arrivalIdx = chatCache[localIdx].arrivalIdx;
+            chatCache.splice(localIdx, 1, base);
+          } else {
+            base.arrivalIdx = ++chatArriveSeq;
+            chatCache.push(base);
+          }
+        }
         renderChat();
         return;
       }
+
+      // ✅ 非聊天：只处理 added，且用 processedEvents 去重
+      if (ch.type !== 'added') return;
+      if (processedEvents.has(id)) return;
+      processedEvents.add(id);
 
       switch(e.type){
         case "REVEAL_VIEW":
@@ -1080,7 +1095,11 @@ async function sendChat(text){
   await ensureAuth();
   const clean = text.trim().slice(0, 400);
   const localId = genLocalId();
-  chatCache.push({ uid: auth.currentUser.uid, name: me.name, text: clean, gameNo: (S&&S.gameNo)||0, ts: {seconds: Math.floor(Date.now()/1000)}, __local:true, localId });
+  chatCache.push({
+    uid: auth.currentUser.uid, name: me.name, text: clean,
+    gameNo: (S&&S.gameNo)||0, ts: {seconds: Math.floor(Date.now()/1000)},
+    __local:true, localId, arrivalIdx: ++chatArriveSeq
+  });
   renderChat();
   await sendAction({ type:'CHAT', text: clean, localId });
 }
@@ -1097,7 +1116,9 @@ function renderChat(){
   msgs.sort((a,b)=>{
     const ta = tsMs(a.ts), tb = tsMs(b.ts);
     if (ta !== tb) return ta - tb;
-    if (!!a.__local !== !!b.__local) return a.__local ? 1 : -1;
+    // 若时间相同或未回填，用 arrivalIdx 作为稳定顺序
+    const aa = a.arrivalIdx||0, bb = b.arrivalIdx||0;
+    if (aa !== bb) return aa - bb;
     return (a.id||'').localeCompare(b.id||'');
   });
   list.innerHTML = '';
@@ -1117,7 +1138,7 @@ function handleRoomClosedUI(){
   detachAll();
   localStorage.removeItem('lb_session');
   ROOM_ID = null; isHost=false; myHand=[]; myHandHash=""; lastReveal=null; lastTurnUid=null; hasHostAction=false;
-  chatCache = [];
+  chatCache = []; chatArriveSeq = 0;
   const cl = document.getElementById('chatList'); if (cl) cl.innerHTML='';
   document.getElementById("lobby").classList.add("hidden");
   document.getElementById("game").classList.add("hidden");
@@ -1292,7 +1313,6 @@ function renderAll(){
   const prevBy = S.lastClaim ? S.lastClaim.by : null;
   const prevP = prevBy ? (S.players.find(p=>p && p.uid===prevBy)||null) : null;
 
-  // ✅ 客户端提示：仅当“全场只有我有牌 && 上家刚出完牌”时，必须 liar
   const holders = S.players.filter(p=>p&&p.alive && p.handCount>0).map(p=>p.uid);
   const mustLiarUI = amIturn && !S.awaitingReveal && S.pot.length>0 && prevBy && prevBy!==myUid &&
                      holders.length===1 && holders[0]===myUid && prevP && prevP.handCount===0;
@@ -1418,7 +1438,6 @@ function renderHandOnly(){
     holder.appendChild(inner);
 
     holder.onclick = ()=>{
-      // 恶魔牌：只能单选
       if (card.d){
         sel.clear();
         sel.add(idx);
@@ -1448,7 +1467,7 @@ async function leaveRoomLocal(){
   detachAll();
   localStorage.removeItem('lb_session');
   ROOM_ID = null; isHost = false; myHand=[]; myHandHash=""; lastReveal=null; lastTurnUid=null; hasHostAction=false;
-  chatCache = []; const cl = document.getElementById('chatList'); if (cl) cl.innerHTML='';
+  chatCache = []; chatArriveSeq = 0; const cl = document.getElementById('chatList'); if (cl) cl.innerHTML='';
   document.getElementById("btnResetAll").classList.add('hidden');
   document.getElementById("btnLeaveRoom").classList.add('hidden');
   document.getElementById("hostPanel").classList.add('hidden');
