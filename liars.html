@@ -70,7 +70,7 @@
       color:#99a; text-shadow:0 1px 0 rgba(0,0,0,.4);
     }
     .face-back .inner{ transform: rotateY(180deg); }
-    .card.sel .inner{ outline:2px solid var(--accent); box-shadow:0 0 0 6px rgba(125,211,252,.13); transform: translateY(-4px) }
+    .card.sel .inner{ outline:2px solid --accent; box-shadow:0 0 0 6px rgba(125,211,252,.13); transform: translateY(-4px) }
     .rank{font-size:22px; line-height:1}
     .glyph{font-size:16px; opacity:.85}
     .joker .front{ background:repeating-linear-gradient(45deg,#0e1833 0 7px,#0b142a 7px 14px); }
@@ -110,7 +110,6 @@
       </div>
       <div class="flex items-center gap-2">
         <span id="authBadge" class="badge">Auth: —</span>
-        <!-- 所有人统一显示“退出房间” -->
         <button id="btnLeaveRoom" class="btn btn-danger hidden">退出房间</button>
       </div>
     </div>
@@ -167,9 +166,9 @@
             <label class="text-sm opacity-80" id="lblStartHand">起始手牌</label>
             <input id="startHand" type="number" min="3" max="9" value="5" class="w-20 rounded-xl bg-[#0b142a] border border-[#3b4a70] p-2.5"/>
           </div>
-          <!-- 应用设置按钮隐藏（变更即生效） -->
+          <!-- “应用设置”去掉：改为变更即生效 -->
           <button id="btnApply" class="btn hidden">应用设置</button>
-          <!-- 大厅“重开”隐藏，游戏内再出现 -->
+          <!-- 大厅不显示“重开”，游戏内显示“新一局” -->
           <button id="btnHostRestart" class="btn btn-amber hidden">重开</button>
           <button id="btnStart" class="btn btn-prim disabled:opacity-50" disabled>开始游戏</button>
         </div>
@@ -186,7 +185,7 @@
         <span class="badge"><span id="lblCurrent">当前：</span><b id="currentPlayer" class="text-emerald-300"></b></span>
         <span id="yourTurnTag" class="badge hidden ping" style="border-color:#34d399;color:#34d399">你的回合</span>
 
-        <!-- 游戏内：仅 Host 可见的新一局（开始游戏后显示） -->
+        <!-- 游戏内：仅 Host 可见的新一局 -->
         <button id="btnHostNewGame" class="btn btn-amber hidden ml-auto">新一局</button>
       </div>
 
@@ -212,7 +211,7 @@
             <button id="btnLiar" class="btn btn-danger">liar</button>
             <button id="btnReveal" class="btn btn-amber hidden">翻开判定</button>
           </div>
-          <p class="opacity-80 text-sm mt-2" id="revealHint">只翻最近一次出牌，3 秒后判定并出现掷骰动画；失败者掷到 6 立刻死亡，或掷到同点第二次死亡。</p>
+          <p class="opacity-80 text-sm mt-2" id="revealHint">只翻最近一次出牌，3 秒后判定并出现掷骰动画；失败者掷到 6 立刻死亡，或 2 次掷到同点则死亡。</p>
         </div>
       </div>
 
@@ -557,6 +556,7 @@ async function hostStart(){
 }
 
 async function hostRestart(){
+  await clearChatHistory(); // 清空聊天
   H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
   H.players.forEach(p=>{ if(p){ p.alive=true; p.rolls=[]; p.rollMap={}; p.hand=[]; }});
   await sendHands();
@@ -566,6 +566,8 @@ async function hostRestart(){
 
 /* 游戏中“新一局” */
 async function hostNewGame(){
+  await clearChatHistory(); // 新一局前清空聊天
+
   H.players = H.players.map(p => p ? { ...p, alive:true, rolls:[], rollMap:{}, hand:[] } : p);
 
   const seated = H.players.filter(p=>p);
@@ -587,18 +589,18 @@ async function hostNewGame(){
   showSmoke();
 }
 
-/* 玩家离开（任何时刻，移除座位；如果是当前手则推进回合） */
+/* 玩家离开（移除座位；如果当前手则推进回合） */
 async function hostRemovePlayer(guestUid){
   const idx = H.players.findIndex(p=>p && p.uid===guestUid);
   if (idx < 0) return;
   const wasTurn = (H.turn === idx);
-  H.players[idx] = null;
+  H.players[idx] = null; // 座位变空 —— 大厅同步能看到空位
   if (wasTurn) H.turn = nextAliveFrom(H, idx);
   const alive = H.players.filter(p=>p && p.alive);
   if (alive.length <= 1){
     await writeState(true);
   }else{
-    await writeLobby();
+    await writeLobby(); // 关键：立刻写入，前端订阅能看到座位空出来
     await writeState();
   }
 }
@@ -703,6 +705,7 @@ async function redealFrom(startIndex){
 }
 
 async function hostBackToLobbyReset(){
+  await clearChatHistory(); // 回大厅也清空聊天
   H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
   H.target=null; H.turn=0;
   H.players.forEach(p=>{ if(p){ p.alive=true; p.rolls=[]; p.rollMap={}; p.hand=[]; }});
@@ -720,6 +723,16 @@ async function hostCloseRoom(){
   }catch(e){
     console.error('close room error', e);
   }
+}
+
+/* ===================== 聊天：清空历史（新一局/重开/回大厅时调用） ===================== */
+async function clearChatHistory(){
+  const { chat } = roomRefs(ROOM_ID);
+  // 批量删除最近 500 条（足够覆盖一局）
+  const snap = await chat.orderBy('ts').limitToLast(500).get();
+  const batch = db.batch();
+  snap.forEach(doc=> batch.delete(doc.ref));
+  if (!snap.empty) await batch.commit();
 }
 
 /* ===================== Host 监听 actions ===================== */
@@ -848,9 +861,9 @@ function attachCommonListeners(){
     console.error('Hand listen error:', err);
   });
 
-  // —— 聊天订阅：按客户端时间 ct 排序，渲染“玩家名： 消息” ——
+  // —— 聊天订阅（按服务器时间 ts 排序，跨端实时 & 刷新不丢） ——
   if (unsubChat) unsubChat();
-  unsubChat = chat.orderBy('ct').limitToLast(200).onSnapshot((qs)=>{
+  unsubChat = chat.orderBy('ts').limitToLast(200).onSnapshot((qs)=>{
     const box = document.getElementById('chatBox');
     if (!box) return;
     const items = [];
@@ -899,7 +912,6 @@ function renderLobbyLocal(lobby){
     const cell = document.createElement('div'); cell.className = "rounded-xl p-3 border border-[#334155] bg-[#0b142a]";
     const occupant = lobby.seats[i];
     if (occupant){
-      // 非 Host 的本人可离座
       const canLeave = (occupant.uid === (auth.currentUser && auth.currentUser.uid)) && (occupant.uid !== lobby.hostUid);
       cell.innerHTML = `<div class="font-semibold mb-1">${t('seatN', i+1)}</div>
         <div class="opacity-90">${occupant.name}</div>
@@ -928,7 +940,6 @@ function renderAll(){
   if (!S) return;
   if (!S.awaitingReveal) lastReveal = null;
 
-  // “新一局”按钮仅当已开始游戏才显示，且仅 Host
   const ngHost = document.getElementById('btnHostNewGame');
   if (ngHost) ngHost.classList.toggle('hidden', !(isHost && (S.roundNo||0) >= 1));
 
@@ -938,7 +949,7 @@ function renderAll(){
     winnerWrap.classList.remove("hidden");
     const ng = document.getElementById('btnNewGame');
     if (ng) ng.classList.toggle('hidden', !isHost);
-    launchConfetti();
+    launchConfetti(); // 只保留胜利撒花
   } else {
     winnerWrap.classList.add("hidden");
   }
@@ -1156,10 +1167,7 @@ function detachAll(){
 }
 async function leaveRoomLocal(){
   try {
-    // 如果是 Guest，通知 Host 释放席位
-    if (!isHost && ROOM_ID) {
-      try { await sendAction({ type:'LEAVE_ROOM' }); } catch(e){}
-    }
+    if (!isHost && ROOM_ID) { try { await sendAction({ type:'LEAVE_ROOM' }); } catch(e){} }
   } finally {
     detachAll();
     localStorage.removeItem('lb_session');
@@ -1173,30 +1181,18 @@ async function leaveRoomLocal(){
   }
 }
 
-/* ===================== 聊天发送（乐观更新 + ct 排序字段） ===================== */
+/* ===================== 聊天发送 ===================== */
 async function sendChat(text){
   const val = (text || '').trim();
   if (!val) return;
-
   const { chat } = roomRefs(ROOM_ID);
   await ensureAuth();
 
-  // 本地立刻显示（乐观更新）
-  const box = document.getElementById('chatBox');
-  if (box){
-    const line = document.createElement('div');
-    line.className = 'text-sm';
-    line.innerHTML = `<span class="opacity-80">${escapeHTML(me.name || 'Player')}：</span><span>${escapeHTML(val)}</span>`;
-    box.appendChild(line);
-    box.scrollTop = box.scrollHeight;
-  }
-
-  // 写入数据库：带客户端时间 ct 以及服务器时间 ts
+  // 写入数据库：仅依赖服务器时间 ts（跨端一致）
   await chat.add({
     uid: auth.currentUser.uid,
     name: me.name || 'Player',
     text: val.slice(0, 500),
-    ct: Date.now(),
     ts: firebase.firestore.FieldValue.serverTimestamp()
   });
 }
@@ -1218,9 +1214,7 @@ document.getElementById("btnJoin").onclick = async ()=>{
 
 /* 顶栏“退出房间”：Host 先关闭房间，Guest 发送离房动作 */
 document.getElementById("btnLeaveRoom").onclick = async ()=>{
-  if (isHost && ROOM_ID){
-    await hostCloseRoom();
-  }
+  if (isHost && ROOM_ID){ await hostCloseRoom(); }
   await leaveRoomLocal();
 };
 
@@ -1228,7 +1222,6 @@ document.getElementById("btnLeaveRoom").onclick = async ()=>{
 async function applySettingsLocal(){ if (!isHost) return; await hostApplySettings(); }
 async function startLocal(){ if (!isHost) return; await hostStart(); }
 
-document.getElementById("btnApply").onclick = applySettingsLocal;
 document.getElementById("seatMax").addEventListener("change", applySettingsLocal);
 document.getElementById("startHand").addEventListener("change", applySettingsLocal);
 document.getElementById("btnStart").onclick = startLocal;
@@ -1296,13 +1289,13 @@ document.getElementById('chatInput').addEventListener('keydown', async (e)=>{
   }
 });
 
-/* 语言切换：避免跳回旧牌局界面 */
+/* 语言切换：只刷新文案 & 重绘，不强制切屏（切屏由状态决定） */
 document.getElementById("langSel").addEventListener("change", (e)=>{
   LANG = e.target.value;
   localStorage.setItem('lb_lang', LANG);
   applyStaticTexts();
   if (L) renderLobbyLocal(L);
-  if (S) renderAll(); // 只重绘，不强制切屏；切屏逻辑由 state 监听决定
+  if (S) renderAll();
 });
 
 // 页面加载：登录后尝试恢复会话；恢复失败就停在创建/加入页
