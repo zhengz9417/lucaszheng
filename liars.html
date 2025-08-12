@@ -110,9 +110,7 @@
       </div>
       <div class="flex items-center gap-2">
         <span id="authBadge" class="badge">Auth: —</span>
-        <!-- 仅 Host 可见 -->
-        <button id="btnResetAll" class="btn hidden">刷新页面</button>
-        <!-- 仅 Guest 可见：退出房间 -->
+        <!-- 统一都显示“退出房间” -->
         <button id="btnLeaveRoom" class="btn btn-danger hidden">退出房间</button>
       </div>
     </div>
@@ -169,9 +167,11 @@
             <label class="text-sm opacity-80" id="lblStartHand">起始手牌</label>
             <input id="startHand" type="number" min="3" max="9" value="5" class="w-20 rounded-xl bg-[#0b142a] border border-[#3b4a70] p-2.5"/>
           </div>
-          <button id="btnApply" class="btn">应用设置</button>
+          <!-- 应用设置按钮去掉（隐藏） -->
+          <button id="btnApply" class="btn hidden">应用设置</button>
+          <!-- 大厅的“重开”去掉（隐藏），只保留游戏内的新一局 -->
+          <button id="btnHostRestart" class="btn btn-amber hidden">重开</button>
           <button id="btnStart" class="btn btn-prim disabled:opacity-50" disabled>开始游戏</button>
-          <button id="btnHostRestart" class="btn btn-amber">重开</button>
         </div>
       </div>
       <div id="seats" class="mt-5 grid grid-cols-2 md:grid-cols-4 gap-4"></div>
@@ -186,7 +186,7 @@
         <span class="badge"><span id="lblCurrent">当前：</span><b id="currentPlayer" class="text-emerald-300"></b></span>
         <span id="yourTurnTag" class="badge hidden ping" style="border-color:#34d399;color:#34d399">你的回合</span>
 
-        <!-- 游戏内：仅 Host 可见的新一局 -->
+        <!-- 游戏内：仅 Host 可见的新一局（开始游戏后再显示） -->
         <button id="btnHostNewGame" class="btn btn-amber hidden ml-auto">新一局</button>
       </div>
 
@@ -216,6 +216,17 @@
         </div>
       </div>
 
+      <!-- —— 新增：聊天 —— -->
+      <div class="mt-6">
+        <h3 class="font-semibold mb-2">聊天室</h3>
+        <div id="chatBox" class="rounded-xl border border-[#334155] bg-[#0b142a] p-3 max-h-64 overflow-y-auto"></div>
+        <div class="mt-2 flex gap-2">
+          <input id="chatInput" class="flex-1 rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text-[15px] outline-none focus:ring-2 focus:ring-sky-400/40" placeholder="输入聊天内容，回车发送…" />
+          <button id="btnSendChat" class="btn">发送</button>
+        </div>
+      </div>
+      <!-- —— 聊天结束 —— -->
+
       <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-6 hidden z-30">
         <div class="px-4 py-2 rounded-full shadow bg-black/70 text-white">提示</div>
       </div>
@@ -242,7 +253,7 @@
 /* ===================== i18n ===================== */
 let LANG = localStorage.getItem('lb_lang') || 'zh';
 const i18n = {
-  zh:{back:"返回主网页", title:"Liar’s Bar", refresh:"刷新页面",
+  zh:{back:"返回主网页", title:"Liar’s Bar",
     connectTitle:"进入或创建房间", nick:"你的昵称", room:"房间号（加入时填写）",
     create:"我是主机（创建房间）", join:"加入房间",
     localNote:"跨设备联机版（Firebase Firestore 实时）。",
@@ -263,7 +274,7 @@ const i18n = {
     rollBanner:(name,v,dead)=> dead ? `${name} 掷出 ${v} —— 淘汰！` : `${name} 掷出 ${v} —— 安全`,
     phNick:"例如：Lucas", phRoom:"例如：ABCD1",
   },
-  en:{back:"Back to Home", title:"Liar’s Bar", refresh:"Refresh",
+  en:{back:"Back to Home", title:"Liar’s Bar",
     connectTitle:"Join or Create a Room", nick:"Your nickname", room:"Room ID (to join)",
     create:"I'm Host (Create)", join:"Join Room",
     localNote:"Cross-device realtime (Firebase Firestore).",
@@ -290,7 +301,6 @@ function applyStaticTexts(){
   document.documentElement.lang = LANG;
   document.getElementById('hdrBackTxt').textContent = t('back');
   document.getElementById('hdrTitle').textContent = t('title');
-  document.getElementById('btnResetAll').textContent = t('refresh');
   document.getElementById('connTitle').textContent = t('connectTitle');
   document.getElementById('lblNick').textContent = t('nick');
   document.getElementById('lblRoom').textContent = t('room');
@@ -301,9 +311,7 @@ function applyStaticTexts(){
   document.getElementById('lblRole').textContent = t('role');
   document.getElementById('lblSeats').textContent = t('seats');
   document.getElementById('lblStartHand').textContent = t('startHand');
-  document.getElementById('btnApply').textContent = t('apply');
   document.getElementById('btnStart').textContent = t('start');
-  document.getElementById('btnHostRestart').textContent = t('restart');
   document.getElementById('seatsTip').textContent = t('seatsTip');
   document.getElementById('lblRound').textContent = t('round');
   document.getElementById('lblTarget').textContent = t('target');
@@ -384,8 +392,8 @@ async function tryAutoResume(){
   document.getElementById("roomShow").textContent = ROOM_ID;
   document.getElementById("roleShow").textContent = isHost ? t('roleHost') : t('roleGuest');
   document.getElementById("hostPanel").classList.toggle('hidden', !isHost);
-  document.getElementById("btnResetAll").classList.toggle('hidden', !isHost);
-  document.getElementById("btnLeaveRoom").classList.toggle('hidden', isHost); // Guest 才显示
+  // Host 也显示“退出房间”
+  document.getElementById("btnLeaveRoom").classList.remove('hidden');
   return true;
 }
 
@@ -413,6 +421,7 @@ function roomRefs(roomId){
     actions: room.collection('actions'),
     events: room.collection('events'),
     hands: room.collection('hands'),
+    chat:  room.collection('chat'),
   };
 }
 
@@ -439,6 +448,7 @@ async function hostInit(roomId, name){
     settings: H.settings,
     seats: H.players.map(p=> p ? {uid:p.uid, name:p.name, alive:p.alive, rolls:p.rolls} : null),
     canStart: false,
+    closed: false,
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
 
@@ -449,8 +459,8 @@ async function hostInit(roomId, name){
   document.getElementById("roomShow").textContent = ROOM_ID;
   document.getElementById("roleShow").textContent = t('roleHost');
   document.getElementById("hostPanel").classList.remove('hidden');
-  document.getElementById("btnResetAll").classList.remove('hidden');
-  document.getElementById("btnLeaveRoom").classList.add('hidden');
+  // Host 顶栏也显示“退出房间”
+  document.getElementById("btnLeaveRoom").classList.remove('hidden');
 }
 
 async function guestJoin(roomId, name){
@@ -463,7 +473,6 @@ async function guestJoin(roomId, name){
   document.getElementById("roomShow").textContent = ROOM_ID;
   document.getElementById("roleShow").textContent = t('roleGuest');
   document.getElementById("hostPanel").classList.add('hidden');
-  document.getElementById("btnResetAll").classList.add('hidden');
   document.getElementById("btnLeaveRoom").classList.remove('hidden');
 }
 
@@ -588,7 +597,6 @@ async function hostRemovePlayer(guestUid){
   const wasTurn = (H.turn === idx);
   H.players[idx] = null;
   if (wasTurn) H.turn = nextAliveFrom(H, idx);
-  // 如果只剩 1 人，宣告胜利
   const alive = H.players.filter(p=>p && p.alive);
   if (alive.length <= 1){
     await writeState(true);
@@ -707,6 +715,16 @@ async function hostBackToLobbyReset(){
   enterLobbyUI();
 }
 
+/* Host 关闭房间：让所有客户端自动退出 */
+async function hostCloseRoom(){
+  try{
+    const { lobby } = roomRefs(ROOM_ID);
+    await lobby.set({ closed:true }, { merge:true });
+  }catch(e){
+    console.error('close room error', e);
+  }
+}
+
 /* ===================== Host 监听 actions ===================== */
 let unsubActions = null;
 function attachHostActionListener(){
@@ -722,7 +740,7 @@ function attachHostActionListener(){
       try{
         switch(a.type){
           case 'TAKE_SEAT':    await hostTakeSeat(a.seat, a.uid, a.name); break;
-          case 'LEAVE_SEAT':   await hostRemovePlayer(a.uid); break;     // 统一调用移除
+          case 'LEAVE_SEAT':   await hostRemovePlayer(a.uid); break;
           case 'LEAVE_ROOM':   await hostRemovePlayer(a.uid); break;
           case 'PLAY':         await hostPlay(a.uid, a.indices); break;
           case 'LIAR':         await hostLiar(a.uid); break;
@@ -743,32 +761,37 @@ function attachHostActionListener(){
   });
 }
 
-/* ===================== 公用监听 ===================== */
-let unsubLobby=null, unsubState=null, unsubEvents=null, unsubMyHand=null;
+/* ===================== 公用监听（含房间关闭、聊天） ===================== */
+let unsubLobby=null, unsubState=null, unsubEvents=null, unsubMyHand=null, unsubChat=null;
 let L=null, S=null, myHand=[], myHandHash="";
 let lastReveal=null, lastTurnUid=null;
 const processedEvents = new Set();
 
 function attachCommonListeners(){
-  const { lobby, state, events, hands } = roomRefs(ROOM_ID);
+  const { lobby, state, events, hands, chat } = roomRefs(ROOM_ID);
 
   if (unsubLobby) unsubLobby();
   unsubLobby = lobby.onSnapshot((doc)=>{
     if (!doc.exists) return;
     L = doc.data();
 
+    // 房间关闭：所有客户端自动退出
+    if (L.closed && ROOM_ID){
+      alert(LANG==='zh' ? '房间已关闭' : 'Room closed by host');
+      leaveRoomLocal(true); // silent sendAction
+      return;
+    }
+
     const imHost = (L.hostUid === (auth.currentUser && auth.currentUser.uid));
     isHost = imHost;
     document.getElementById("hostPanel").classList.toggle("hidden", !isHost);
-    document.getElementById("btnResetAll").classList.toggle("hidden", !isHost);
-    document.getElementById("btnLeaveRoom").classList.toggle("hidden", isHost);
+    // 顶栏退出对所有人可见
+    document.getElementById("btnLeaveRoom").classList.remove("hidden");
 
     renderLobbyLocal(L);
     document.getElementById("roomShow").textContent = ROOM_ID;
     document.getElementById("roleShow").textContent = isHost ? t('roleHost') : t('roleGuest');
     const btn = document.getElementById("btnStart"); if (btn && isHost) btn.disabled = !L.canStart;
-    // 游戏内“新一局”按钮：只给 Host
-    document.getElementById('btnHostNewGame').classList.toggle('hidden', !isHost);
   }, err=>{
     console.error('Lobby listen error:', err);
     alert('读取大厅失败：' + (err && err.message ? err.message : err));
@@ -823,7 +846,25 @@ function attachCommonListeners(){
   }, err=>{
     console.error('Hand listen error:', err);
   });
+
+  // 聊天订阅
+  if (unsubChat) unsubChat();
+  unsubChat = chat.orderBy('ts').limitToLast(100).onSnapshot((qs)=>{
+    const box = document.getElementById('chatBox');
+    if (!box) return;
+    const items = [];
+    qs.forEach(doc=>{
+      const m = doc.data();
+      const who = (m && m.name) ? m.name : '—';
+      const txt = (m && m.text) ? m.text : '';
+      items.push(`<div class="text-sm"><span class="opacity-80">${who}：</span><span>${escapeHTML(txt)}</span></div>`);
+    });
+    box.innerHTML = items.join('');
+    box.scrollTop = box.scrollHeight;
+  });
 }
+
+function escapeHTML(s){ return (s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
 
 /* ===================== 事件发送（确保登录 + 报错提示） ===================== */
 async function sendAction(data){
@@ -848,18 +889,16 @@ async function sendAction(data){
 function enterLobbyUI(){ document.getElementById("connect").classList.add("hidden"); document.getElementById("game").classList.add("hidden"); document.getElementById("lobby").classList.remove("hidden"); }
 function enterGameUI(){ document.getElementById("lobby").classList.add("hidden"); document.getElementById("game").classList.remove("hidden"); }
 
-/* 大厅允许“退出座位”（未强制要求时依旧保留） */
 function renderLobbyLocal(lobby){
   applyStaticTexts();
   const seats = document.getElementById("seats"); seats.innerHTML="";
   const seatsN = lobby.settings.seats;
-  const hostUid = lobby.hostUid;
 
   for(let i=0;i<seatsN;i++){
     const cell = document.createElement('div'); cell.className = "rounded-xl p-3 border border-[#334155] bg-[#0b142a]";
     const occupant = lobby.seats[i];
     if (occupant){
-      const canLeave = (occupant.uid === (auth.currentUser && auth.currentUser.uid)) && (occupant.uid !== hostUid);
+      const canLeave = (occupant.uid === (auth.currentUser && auth.currentUser.uid)) && (occupant.uid !== lobby.hostUid);
       cell.innerHTML = `<div class="font-semibold mb-1">${t('seatN', i+1)}</div>
         <div class="opacity-90">${occupant.name}</div>
         <div class="text-sm opacity-70 mt-1">${occupant.alive? t('seated') : t('eliminated')}</div>
@@ -883,10 +922,13 @@ function renderLobbyLocal(lobby){
   }
 }
 
-/* 翻牌区只显示“上家出”的牌；并限制 liar / reveal 给下家 */
 function renderAll(){
   if (!S) return;
   if (!S.awaitingReveal) lastReveal = null;
+
+  // “新一局”按钮仅当已开始游戏才显示，且仅 Host
+  const ngHost = document.getElementById('btnHostNewGame');
+  if (ngHost) ngHost.classList.toggle('hidden', !(isHost && (S.roundNo||0) >= 1));
 
   const winnerWrap = document.getElementById("winnerWrap");
   if (S.winner){
@@ -974,19 +1016,16 @@ function renderAll(){
   const amIturn = (currentPlayer && currentPlayer.uid===auth.currentUser.uid && currentPlayer.alive);
   const prevBy = S.lastClaim ? S.lastClaim.by : null;
 
-  // liar：只给“下家”（当前轮到）且上家刚出过牌，且上家不是自己，且不在翻牌
   const liarBtn = document.getElementById("btnLiar");
   const canLiar = amIturn && !S.awaitingReveal && S.pot.length>0 && prevBy && prevBy!==auth.currentUser.uid;
   liarBtn.disabled = !canLiar;
   liarBtn.classList.toggle('hidden', !canLiar);
 
-  // reveal：进入质疑后，只允许“下家/质疑者”（当前轮到）操作
   const revealBtn = document.getElementById("btnReveal");
   const canReveal = S.awaitingReveal && amIturn;
   revealBtn.classList.toggle("hidden", !canReveal);
   revealBtn.disabled = !canReveal;
 
-  // 出牌按钮：依旧只有“当前轮到且有手牌且不在翻牌”才可出
   const playBtn = document.getElementById("btnPlay");
   playBtn.disabled = S.awaitingReveal || !amIturn || (myHand.length===0);
 
@@ -1106,25 +1145,40 @@ function renderHandOnly(){
   document.getElementById("btnPlay").textContent = t('play', sel.size);
 }
 
-/* ===================== 离开房间（Guest） ===================== */
+/* ===================== 离开房间（统一按钮） ===================== */
 function detachAll(){
   unsubLobby && unsubLobby(); unsubLobby=null;
   unsubState && unsubState(); unsubState=null;
   unsubEvents && unsubEvents(); unsubEvents=null;
   unsubMyHand && unsubMyHand(); unsubMyHand=null;
+  unsubChat && unsubChat(); unsubChat=null;
 }
-async function leaveRoomLocal(){
-  try { await sendAction({ type:'LEAVE_ROOM' }); } catch(e){}
+async function leaveRoomLocal(silent){
+  try {
+    if (!silent) await sendAction({ type:'LEAVE_ROOM' });
+  } catch(e){}
   detachAll();
   localStorage.removeItem('lb_session');
   ROOM_ID = null; isHost = false; myHand=[]; myHandHash=""; lastReveal=null; lastTurnUid=null;
-  document.getElementById("btnResetAll").classList.add('hidden');
-  document.getElementById("btnLeaveRoom").classList.add('hidden');
   document.getElementById("hostPanel").classList.add('hidden');
   document.getElementById("lobby").classList.add('hidden');
   document.getElementById("game").classList.add('hidden');
   document.getElementById("connect").classList.remove('hidden');
+  document.getElementById("btnLeaveRoom").classList.add('hidden');
   toast(LANG==='zh' ? '已退出房间' : 'Left the room');
+}
+
+/* ===================== 聊天发送 ===================== */
+async function sendChat(text){
+  if (!text || !text.trim()) return;
+  const { chat } = roomRefs(ROOM_ID);
+  await ensureAuth();
+  await chat.add({
+    uid: auth.currentUser.uid,
+    name: me.name || 'Player',
+    text: text.trim().slice(0, 500),
+    ts: firebase.firestore.FieldValue.serverTimestamp()
+  });
 }
 
 /* ===================== 绑定事件 ===================== */
@@ -1142,20 +1196,24 @@ document.getElementById("btnJoin").onclick = async ()=>{
   applyStaticTexts();
 };
 
-document.getElementById("btnResetAll").onclick = ()=> location.reload();
-document.getElementById("btnLeaveRoom").onclick = leaveRoomLocal;
+/* 顶栏“退出房间”：Host 会先关闭房间 */
+document.getElementById("btnLeaveRoom").onclick = async ()=>{
+  if (isHost && ROOM_ID){
+    await hostCloseRoom();
+  }
+  await leaveRoomLocal(true);
+};
 
+/* 自动应用设置（保留，下拉/输入即应用）；按钮已隐藏 */
 async function applySettingsLocal(){ if (!isHost) return; await hostApplySettings(); }
 async function startLocal(){ if (!isHost) return; await hostStart(); }
-async function restartLocal(){ if (!isHost) return; await hostRestart(); }
-
+// 大厅“重开”已隐藏，不再绑定
 document.getElementById("btnApply").onclick = applySettingsLocal;
 document.getElementById("seatMax").addEventListener("change", applySettingsLocal);
 document.getElementById("startHand").addEventListener("change", applySettingsLocal);
 document.getElementById("btnStart").onclick = startLocal;
-document.getElementById("btnHostRestart").onclick = restartLocal;
 
-/* 游戏内 Host 新一局按钮 */
+/* 游戏内 Host 新一局按钮（开始游戏后才显示） */
 document.getElementById("btnHostNewGame").onclick = async ()=>{
   if (isHost) await hostNewGame(); else await sendAction({ type:'HOST_NEW_GAME' });
 };
@@ -1202,6 +1260,21 @@ document.getElementById("btnBackLobby").onclick = async ()=>{
   document.getElementById("winnerWrap").classList.add("hidden");
   await sendAction({ type:'BACK_TO_LOBBY' });
 };
+
+/* 聊天：按钮 + 回车发送 */
+document.getElementById('btnSendChat').onclick = async ()=>{
+  const ipt = document.getElementById('chatInput');
+  const v = ipt.value;
+  ipt.value = '';
+  await sendChat(v);
+};
+document.getElementById('chatInput').addEventListener('keydown', async (e)=>{
+  if (e.key === 'Enter'){
+    const v = e.target.value;
+    e.target.value = '';
+    await sendChat(v);
+  }
+});
 
 document.getElementById("langSel").addEventListener("change", (e)=>{
   LANG = e.target.value;
