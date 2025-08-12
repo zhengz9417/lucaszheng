@@ -85,8 +85,6 @@
       border:1px solid #93c5fd55; box-shadow:0 20px 60px rgba(59,130,246,.35), inset 0 3px 0 rgba(255,255,255,.06);
       display:grid; place-items:center; animation:pop .55s cubic-bezier(.2,.8,.2,1); }
     @keyframes pop{0%{transform:scale(.6);opacity:.0} 100%{transform:scale(1);opacity:1}}
-    .dice.spin { animation: wobble 300ms ease-in-out infinite; }
-    @keyframes wobble{0%{transform:translateY(0) rotate(0)}25%{transform:translateY(-2px) rotate(3deg)}50%{transform:translateY(0) rotate(0)}75%{transform:translateY(-1px) rotate(-3deg)}100%{transform:translateY(0) rotate(0)}}
 
     .smoke-layer{position:fixed; inset:0; pointer-events:none; z-index:40; overflow:hidden;}
     .puff{position:absolute; bottom:-60px; width:120px; height:120px; border-radius:50%;
@@ -112,7 +110,10 @@
       </div>
       <div class="flex items-center gap-2">
         <span id="authBadge" class="badge">Auth: —</span>
-        <button id="btnResetAll" class="btn">刷新页面</button>
+        <!-- 仅 Host 可见 -->
+        <button id="btnResetAll" class="btn hidden">刷新页面</button>
+        <!-- 仅 Guest 可见：退出房间 -->
+        <button id="btnLeaveRoom" class="btn btn-danger hidden">退出房间</button>
       </div>
     </div>
   </header>
@@ -136,11 +137,11 @@
       <div class="grid md:grid-cols-2 gap-4">
         <div>
           <label class="block text-sm opacity-90 mb-1" id="lblNick">你的昵称</label>
-          <input id="nick" class="w-full rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text-[15px] outline-none focus:ring-2 focus:ring-sky-400/40" placeholder="例如：Lucas" />
+          <input id="nick" class="w-full rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text-[15px] placeholder-gray-400 outline-none focus:ring-2 focus:ring-sky-400/40" placeholder="例如：Lucas" />
         </div>
         <div>
           <label class="block text-sm opacity-90 mb-1" id="lblRoom">房间号（加入时填写）</label>
-          <input id="roomInput" class="w-full rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text-[15px] outline-none focus:ring-2 focus:ring-sky-400/40" placeholder="例如：ABCD1" />
+          <input id="roomInput" class="w-full rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text-[15px] placeholder-gray-400 outline-none focus:ring-2 focus:ring-sky-400/40" placeholder="例如：ABCD1" />
         </div>
       </div>
       <div class="mt-5 flex flex-wrap gap-3">
@@ -184,6 +185,9 @@
         <span class="badge"><span id="lblTarget">目标：</span><b id="targetRank" class="text-sky-300"></b></span>
         <span class="badge"><span id="lblCurrent">当前：</span><b id="currentPlayer" class="text-emerald-300"></b></span>
         <span id="yourTurnTag" class="badge hidden ping" style="border-color:#34d399;color:#34d399">你的回合</span>
+
+        <!-- 游戏内：仅 Host 可见的新一局 -->
+        <button id="btnHostNewGame" class="btn btn-amber hidden ml-auto">新一局</button>
       </div>
 
       <div id="playersRow" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4"></div>
@@ -225,9 +229,9 @@
         <div class="glass-strong rounded-2xl p-6 max-w-md w-full text-center">
           <h3 class="text-xl font-bold mb-2" id="winTitle">胜利！</h3>
           <p class="mb-4"><span id="winnerName" class="font-semibold"></span> <span id="winText">获得胜利 🎉</span></p>
-          <div class="flex items-center justify-center gap-2">
+          <div class="flex items-center justify-center gap-2 flex-wrap">
+            <button id="btnNewGame" class="btn btn-prim hidden">再来一局</button>
             <button id="btnBackLobby" class="btn">返回大厅</button>
-            <a id="btnBackHome" href="index.html" class="btn btn-green">返回主网页</a>
           </div>
         </div>
       </div>
@@ -236,7 +240,7 @@
 
 <script>
 /* ===================== i18n ===================== */
-let LANG = 'zh';
+let LANG = localStorage.getItem('lb_lang') || 'zh';
 const i18n = {
   zh:{back:"返回主网页", title:"Liar’s Bar", refresh:"刷新页面",
     connectTitle:"进入或创建房间", nick:"你的昵称", room:"房间号（加入时填写）",
@@ -246,7 +250,7 @@ const i18n = {
     seats:"座位数（2–4）", startHand:"起始手牌",
     apply:"应用设置", start:"开始游戏", restart:"重开",
     seatsTip:"提示：点击空位即可入座；Host 调整座位数会出现/隐藏位置。",
-    seatN:n=>`座位 ${n}`, joinSeat:"加入此座位", seated:"在座", eliminated:"淘汰",
+    seatN:n=>`座位 ${n}`, joinSeat:"加入此座位", leaveSeat:"退出座位", seated:"在座", eliminated:"淘汰",
     round:"回合：", target:"目标：", current:"当前：", yourTurn:"你的回合",
     table:"桌面", recent:(name,c)=>`最近：${name} × ${c}`, myHand:"我的手牌（点击选择任意张）", actions:"操作",
     play:c=>`出牌（${c}）`, liar:"liar", reveal:"翻开判定",
@@ -254,7 +258,7 @@ const i18n = {
     handCount:c=>`手牌 ${c}`, diceList:r=>`骰：${r}`, playing:"出牌中", unknown:"未知",
     toastTurn:"你的回合", needOne:"请选择至少 1 张", need2p:"至少需要 2 名玩家入座",
     notEnough:"牌不够，请调小起始手牌或座位数",
-    winner:"胜利！", winText:"获得胜利 🎉", backLobby:"返回大厅", backHome:"返回主网页",
+    winner:"胜利！", winText:"获得胜利 🎉", newGame:"新一局",
     claim:(who,target,count)=>`${who}：宣称 ${target} × ${count}`,
     rollBanner:(name,v,dead)=> dead ? `${name} 掷出 ${v} —— 淘汰！` : `${name} 掷出 ${v} —— 安全`,
     phNick:"例如：Lucas", phRoom:"例如：ABCD1",
@@ -267,7 +271,7 @@ const i18n = {
     seats:"Seats (2–4)", startHand:"Start hand",
     apply:"Apply", start:"Start Game", restart:"Restart",
     seatsTip:"Tip: click an empty seat to join; changing seats count shows/hides slots.",
-    seatN:n=>`Seat ${n}`, joinSeat:"Join this seat", seated:"Seated", eliminated:"Eliminated",
+    seatN:n=>`Seat ${n}`, joinSeat:"Join this seat", leaveSeat:"Leave seat", seated:"Seated", eliminated:"Eliminated",
     round:"Round:", target:"Target:", current:"Current:", yourTurn:"Your turn",
     table:"Table", recent:(name,c)=>`Recent: ${name} × ${c}`, myHand:"Your hand (pick any cards)", actions:"Actions",
     play:c=>`Play (${c})`, liar:"liar", reveal:"Reveal",
@@ -275,7 +279,7 @@ const i18n = {
     handCount:c=>`Cards ${c}`, diceList:r=>`Dice: ${r}`, playing:"Playing", unknown:"Unknown",
     toastTurn:"Your turn", needOne:"Select at least 1", need2p:"Need at least 2 players",
     notEnough:"Not enough cards, reduce seats or start hand",
-    winner:"Victory!", winText:"wins 🎉", backLobby:"Back to Lobby", backHome:"Back to Home",
+    winner:"Victory!", winText:"wins 🎉", newGame:"New Game",
     claim:(who,target,count)=>`${who}: claims ${target} × ${count}`,
     rollBanner:(name,v,dead)=> dead ? `${name} rolled ${v} — DEAD!` : `${name} rolled ${v} — safe`,
     phNick:"e.g., Lucas", phRoom:"e.g., ABCD1",
@@ -313,8 +317,8 @@ function applyStaticTexts(){
   document.getElementById('revealHint').textContent = t('revealHint');
   document.getElementById('winTitle').textContent = t('winner');
   document.getElementById('winText').textContent = t('winText');
-  document.getElementById('btnBackLobby').textContent = t('backLobby');
-  document.getElementById('btnBackHome').textContent = t('backHome');
+  const ng = document.getElementById('btnNewGame'); if (ng) ng.textContent = t('newGame');
+  const ng2 = document.getElementById('btnHostNewGame'); if (ng2) ng2.textContent = t('newGame');
   document.getElementById('nick').placeholder = t('phNick');
   document.getElementById('roomInput').placeholder = t('phRoom');
 }
@@ -343,6 +347,46 @@ async function ensureAuth(){
     alert('登录失败：' + (e && e.message ? e.message : e));
     throw e;
   }
+}
+
+/* ===================== 会话保存 / 恢复 ===================== */
+function saveSession(roomId, name){
+  localStorage.setItem('lb_session', JSON.stringify({roomId, name, t:Date.now()}));
+  localStorage.setItem('lb_lang', LANG);
+}
+async function tryAutoResume(){
+  const savedStr = localStorage.getItem('lb_session');
+  if (!savedStr) return false;
+  const saved = JSON.parse(savedStr||'{}');
+  if (!saved.roomId) return false;
+  ROOM_ID = saved.roomId; me.name = saved.name || 'Player';
+  const lobbyDoc = await roomRefs(ROOM_ID).lobby.get().catch(()=>null);
+  if (!lobbyDoc || !lobbyDoc.exists) return false;
+
+  const hUid = lobbyDoc.data().hostUid;
+  isHost = (auth.currentUser && auth.currentUser.uid === hUid);
+
+  if (isHost){
+    const stDoc = await roomRefs(ROOM_ID).state.get().catch(()=>null);
+    const st = (stDoc && stDoc.exists) ? stDoc.data() : {};
+    H = {
+      settings: lobbyDoc.data().settings || { seats:4, startHand:5 },
+      players: (lobbyDoc.data().seats||[]).map(s=> s? { uid:s.uid, name:s.name, alive:s.alive!==false, rolls:s.rolls||[], rollMap:{}, hand:[] } : null),
+      roundNo: st.roundNo||0, target: st.target||null, turn: st.turn||0,
+      pot:[], awaitingReveal: st.awaitingReveal||false, challengerId:null, revealing:false
+    };
+    attachCommonListeners();
+    attachHostActionListener();
+  }else{
+    attachCommonListeners();
+  }
+  enterLobbyUI();
+  document.getElementById("roomShow").textContent = ROOM_ID;
+  document.getElementById("roleShow").textContent = isHost ? t('roleHost') : t('roleGuest');
+  document.getElementById("hostPanel").classList.toggle('hidden', !isHost);
+  document.getElementById("btnResetAll").classList.toggle('hidden', !isHost);
+  document.getElementById("btnLeaveRoom").classList.toggle('hidden', isHost); // Guest 才显示
+  return true;
 }
 
 /* ===================== 全局与工具 ===================== */
@@ -386,6 +430,7 @@ async function hostInit(roomId, name){
     players: new Array(4).fill(null),
     roundNo:0, target:null, turn:0,
     pot:[], awaitingReveal:false, challengerId:null,
+    revealing:false
   };
   H.players[0] = { uid, name, alive:true, rolls:[], rollMap:{}, hand:[] };
 
@@ -397,23 +442,29 @@ async function hostInit(roomId, name){
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
 
+  saveSession(ROOM_ID, name);
   attachCommonListeners();
   attachHostActionListener();
   enterLobbyUI();
   document.getElementById("roomShow").textContent = ROOM_ID;
   document.getElementById("roleShow").textContent = t('roleHost');
   document.getElementById("hostPanel").classList.remove('hidden');
+  document.getElementById("btnResetAll").classList.remove('hidden');
+  document.getElementById("btnLeaveRoom").classList.add('hidden');
 }
 
 async function guestJoin(roomId, name){
   isHost = false; ROOM_ID = roomId; me.name = name;
   const user = await ensureAuth(); uid = user.uid; me.uid = uid;
 
+  saveSession(ROOM_ID, name);
   attachCommonListeners();
   enterLobbyUI();
   document.getElementById("roomShow").textContent = ROOM_ID;
   document.getElementById("roleShow").textContent = t('roleGuest');
   document.getElementById("hostPanel").classList.add('hidden');
+  document.getElementById("btnResetAll").classList.add('hidden');
+  document.getElementById("btnLeaveRoom").classList.remove('hidden');
 }
 
 /* ===================== Host 写入 ===================== */
@@ -492,7 +543,7 @@ async function hostStart(){
   H.roundNo = (H.roundNo||0) + 1;
   H.target = TARGETS[rnd(TARGETS.length)];
   H.turn = H.players.findIndex(p=>p && p.alive);
-  H.pot = []; H.awaitingReveal=false; H.challengerId=null;
+  H.pot = []; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
 
   await sendHands();
   await writeState();
@@ -500,11 +551,51 @@ async function hostStart(){
 }
 
 async function hostRestart(){
-  H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null;
+  H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
   H.players.forEach(p=>{ if(p){ p.alive=true; p.rolls=[]; p.rollMap={}; p.hand=[]; }});
   await sendHands();
   await writeLobby();
   await writeState();
+}
+
+/* 游戏中“新一局” */
+async function hostNewGame(){
+  H.players = H.players.map(p => p ? { ...p, alive:true, rolls:[], rollMap:{}, hand:[] } : p);
+
+  const seated = H.players.filter(p=>p);
+  const deck = makeCustomDeck();
+  if (seated.length * H.settings.startHand > deck.length) {
+    H.settings.startHand = Math.max(1, Math.floor(deck.length / seated.length));
+  }
+  for (const p of H.players){ if (p) p.hand = deck.splice(0, H.settings.startHand); }
+
+  H.roundNo = 1;
+  H.target  = TARGETS[rnd(TARGETS.length)];
+  H.turn    = H.players.findIndex(p=>p && p.alive);
+  H.pot     = [];
+  H.awaitingReveal = false;
+  H.challengerId   = null;
+  H.revealing      = false;
+
+  await sendHands(); await writeLobby(); await writeState();
+  showSmoke();
+}
+
+/* 玩家离开（任何时刻，移除座位；如果是当前手则推进回合） */
+async function hostRemovePlayer(guestUid){
+  const idx = H.players.findIndex(p=>p && p.uid===guestUid);
+  if (idx < 0) return;
+  const wasTurn = (H.turn === idx);
+  H.players[idx] = null;
+  if (wasTurn) H.turn = nextAliveFrom(H, idx);
+  // 如果只剩 1 人，宣告胜利
+  const alive = H.players.filter(p=>p && p.alive);
+  if (alive.length <= 1){
+    await writeState(true);
+  }else{
+    await writeLobby();
+    await writeState();
+  }
 }
 
 async function hostTakeSeat(seat, _uid, name){
@@ -534,6 +625,7 @@ async function handsSetOne(uidX, hand){ const { hands } = roomRefs(ROOM_ID); awa
 async function hostLiar(_uid){
   H.challengerId = _uid;
   H.awaitingReveal = true;
+  H.revealing = false;
   lastReveal = null;
   await writeState();
 }
@@ -542,7 +634,9 @@ const DICE_TURNS = 14, DICE_BASE = 70, DICE_INC = 35, DICE_HOLD = 1000;
 function diceAnimMs(){ return (DICE_TURNS+1)*DICE_BASE + (DICE_TURNS*(DICE_TURNS+1)/2)*DICE_INC + DICE_HOLD; }
 
 async function hostReveal(){
-  if (!H.awaitingReveal || H.pot.length===0) return;
+  if (!H.awaitingReveal || H.pot.length===0 || H.revealing) return;
+  H.revealing = true;
+
   const last = H.pot[H.pot.length-1];
   lastReveal = last.cards.map(c=>({...c}));
   await emitEvent("REVEAL_VIEW", { cards:last.cards.map(c=>({...c})) });
@@ -553,7 +647,7 @@ async function hostReveal(){
     const winnerId = truthful ? last.by : H.challengerId;
     const loserSeat  = H.players.findIndex(p=>p && p.uid===loserId);
     const winnerSeat = H.players.findIndex(p=>p && p.uid===winnerId);
-    if (loserSeat<0) return;
+    if (loserSeat<0) { H.revealing=false; return; }
 
     const P = H.players[loserSeat];
     const roll = 1 + rnd(6);
@@ -562,18 +656,23 @@ async function hostReveal(){
 
     setTimeout(async ()=>{
       P.rolls.push(roll); P.rollMap[roll]=(P.rollMap[roll]||0)+1;
-      let dieNow = (roll===6) || (P.rollMap[roll]>=2);
+      const dieNow = (roll===6) || (P.rollMap[roll]>=2);
       if (dieNow){ P.alive=false; P.hand=[]; await handsSetOne(P.uid, P.hand); }
 
       await emitEvent("DICE_RESULT", { who:P.name, uid:P.uid, value:roll, died:dieNow });
 
       const startIndex = (winnerSeat>=0 && H.players[winnerSeat]?.alive) ? winnerSeat : nextAliveFrom(H, loserSeat);
-      setTimeout(async ()=>{ await redealFrom(startIndex); }, 1200);
+      setTimeout(async ()=>{
+        await redealFrom(startIndex);
+        H.revealing = false;
+      }, 1200);
     }, diceAnimMs());
   }, 3000);
 }
 
 async function redealFrom(startIndex){
+  H.awaitingReveal = false;
+  H.revealing = false;
   const alive = H.players.filter(p=>p && p.alive);
   if (alive.length<=1){ await writeState(true); return; }
 
@@ -599,7 +698,7 @@ async function redealFrom(startIndex){
 }
 
 async function hostBackToLobbyReset(){
-  H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null;
+  H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
   H.target=null; H.turn=0;
   H.players.forEach(p=>{ if(p){ p.alive=true; p.rolls=[]; p.rollMap={}; p.hand=[]; }});
   await sendHands();
@@ -608,7 +707,7 @@ async function hostBackToLobbyReset(){
   enterLobbyUI();
 }
 
-/* ===================== Host 监听 actions（避免索引） ===================== */
+/* ===================== Host 监听 actions ===================== */
 let unsubActions = null;
 function attachHostActionListener(){
   const { actions } = roomRefs(ROOM_ID);
@@ -622,13 +721,16 @@ function attachHostActionListener(){
 
       try{
         switch(a.type){
-          case 'TAKE_SEAT': await hostTakeSeat(a.seat, a.uid, a.name); break;
-          case 'PLAY':      await hostPlay(a.uid, a.indices); break;
-          case 'LIAR':      await hostLiar(a.uid); break;
-          case 'REVEAL':    await hostReveal(); break;
+          case 'TAKE_SEAT':    await hostTakeSeat(a.seat, a.uid, a.name); break;
+          case 'LEAVE_SEAT':   await hostRemovePlayer(a.uid); break;     // 统一调用移除
+          case 'LEAVE_ROOM':   await hostRemovePlayer(a.uid); break;
+          case 'PLAY':         await hostPlay(a.uid, a.indices); break;
+          case 'LIAR':         await hostLiar(a.uid); break;
+          case 'REVEAL':       await hostReveal(); break;
           case 'HOST_APPLY':   if (a.uid===uid) await hostApplySettings(); break;
           case 'HOST_START':   if (a.uid===uid) await hostStart(); break;
           case 'HOST_RESTART': if (a.uid===uid) await hostRestart(); break;
+          case 'HOST_NEW_GAME':if (a.uid===uid) await hostNewGame(); break;
           case 'BACK_TO_LOBBY': await hostBackToLobbyReset(); break;
         }
       } finally {
@@ -654,11 +756,19 @@ function attachCommonListeners(){
   unsubLobby = lobby.onSnapshot((doc)=>{
     if (!doc.exists) return;
     L = doc.data();
+
+    const imHost = (L.hostUid === (auth.currentUser && auth.currentUser.uid));
+    isHost = imHost;
+    document.getElementById("hostPanel").classList.toggle("hidden", !isHost);
+    document.getElementById("btnResetAll").classList.toggle("hidden", !isHost);
+    document.getElementById("btnLeaveRoom").classList.toggle("hidden", isHost);
+
     renderLobbyLocal(L);
     document.getElementById("roomShow").textContent = ROOM_ID;
     document.getElementById("roleShow").textContent = isHost ? t('roleHost') : t('roleGuest');
-    document.getElementById("hostPanel").classList.toggle("hidden", !isHost);
     const btn = document.getElementById("btnStart"); if (btn && isHost) btn.disabled = !L.canStart;
+    // 游戏内“新一局”按钮：只给 Host
+    document.getElementById('btnHostNewGame').classList.toggle('hidden', !isHost);
   }, err=>{
     console.error('Lobby listen error:', err);
     alert('读取大厅失败：' + (err && err.message ? err.message : err));
@@ -718,7 +828,7 @@ function attachCommonListeners(){
 /* ===================== 事件发送（确保登录 + 报错提示） ===================== */
 async function sendAction(data){
   try{
-    await ensureAuth();                 // 确保匿名登录就绪
+    await ensureAuth();
     if (!uid) uid = auth.currentUser.uid;
     const { actions } = roomRefs(ROOM_ID);
     return await actions.add({
@@ -738,17 +848,26 @@ async function sendAction(data){
 function enterLobbyUI(){ document.getElementById("connect").classList.add("hidden"); document.getElementById("game").classList.add("hidden"); document.getElementById("lobby").classList.remove("hidden"); }
 function enterGameUI(){ document.getElementById("lobby").classList.add("hidden"); document.getElementById("game").classList.remove("hidden"); }
 
+/* 大厅允许“退出座位”（未强制要求时依旧保留） */
 function renderLobbyLocal(lobby){
   applyStaticTexts();
   const seats = document.getElementById("seats"); seats.innerHTML="";
   const seatsN = lobby.settings.seats;
+  const hostUid = lobby.hostUid;
+
   for(let i=0;i<seatsN;i++){
     const cell = document.createElement('div'); cell.className = "rounded-xl p-3 border border-[#334155] bg-[#0b142a]";
     const occupant = lobby.seats[i];
     if (occupant){
+      const canLeave = (occupant.uid === (auth.currentUser && auth.currentUser.uid)) && (occupant.uid !== hostUid);
       cell.innerHTML = `<div class="font-semibold mb-1">${t('seatN', i+1)}</div>
         <div class="opacity-90">${occupant.name}</div>
-        <div class="text-sm opacity-70 mt-1">${occupant.alive? t('seated') : t('eliminated')}</div>`;
+        <div class="text-sm opacity-70 mt-1">${occupant.alive? t('seated') : t('eliminated')}</div>
+        ${canLeave ? `<button class="btn btn-danger w-full mt-2">${t('leaveSeat')}</button>` : ``}`;
+      if (canLeave){
+        const btn = cell.querySelector('button');
+        btn.onclick = async ()=>{ try{ await sendAction({ type:'LEAVE_SEAT' }); }catch(e){} };
+      }
     } else {
       cell.innerHTML = `<div class="font-semibold mb-2">${t('seatN', i+1)}</div>
         <button class="btn btn-green w-full" id="join-${i}">${t('joinSeat')}</button>`;
@@ -764,15 +883,22 @@ function renderLobbyLocal(lobby){
   }
 }
 
+/* 翻牌区只显示“上家出”的牌；并限制 liar / reveal 给下家 */
 function renderAll(){
   if (!S) return;
   if (!S.awaitingReveal) lastReveal = null;
 
+  const winnerWrap = document.getElementById("winnerWrap");
   if (S.winner){
     document.getElementById("winnerName").textContent = S.winner.name;
-    document.getElementById("winnerWrap").classList.remove("hidden");
+    winnerWrap.classList.remove("hidden");
+    const ng = document.getElementById('btnNewGame');
+    if (ng) ng.classList.toggle('hidden', !isHost);
     launchConfetti();
+  } else {
+    winnerWrap.classList.add("hidden");
   }
+
   enterGameUI();
   document.getElementById("roundNo").textContent = S.roundNo||1;
   document.getElementById("targetRank").textContent = S.target||"-";
@@ -845,15 +971,29 @@ function renderAll(){
   document.getElementById("lastClaim").textContent = S.lastClaim ? t('recent', (S.players.find(p=>p&&p.uid===S.lastClaim.by)||{}).name||t('unknown'), S.lastClaim.count) : "—";
   if (S.lastClaim) potFlashOnce();
 
-  const yourTurnTag = document.getElementById("yourTurnTag");
-  const amIturn = (currentPlayer && currentPlayer.uid===uid && currentPlayer.alive);
-  document.getElementById("btnReveal").classList.toggle("hidden", !S.awaitingReveal);
-  document.getElementById("btnPlay").disabled = S.awaitingReveal || !amIturn || (myHand.length===0);
-  document.getElementById("btnLiar").disabled = S.awaitingReveal || S.pot.length===0 || !amIturn;
-  yourTurnTag.classList.toggle("hidden", !amIturn);
+  const amIturn = (currentPlayer && currentPlayer.uid===auth.currentUser.uid && currentPlayer.alive);
+  const prevBy = S.lastClaim ? S.lastClaim.by : null;
+
+  // liar：只给“下家”（当前轮到）且上家刚出过牌，且上家不是自己，且不在翻牌
+  const liarBtn = document.getElementById("btnLiar");
+  const canLiar = amIturn && !S.awaitingReveal && S.pot.length>0 && prevBy && prevBy!==auth.currentUser.uid;
+  liarBtn.disabled = !canLiar;
+  liarBtn.classList.toggle('hidden', !canLiar);
+
+  // reveal：进入质疑后，只允许“下家/质疑者”（当前轮到）操作
+  const revealBtn = document.getElementById("btnReveal");
+  const canReveal = S.awaitingReveal && amIturn;
+  revealBtn.classList.toggle("hidden", !canReveal);
+  revealBtn.disabled = !canReveal;
+
+  // 出牌按钮：依旧只有“当前轮到且有手牌且不在翻牌”才可出
+  const playBtn = document.getElementById("btnPlay");
+  playBtn.disabled = S.awaitingReveal || !amIturn || (myHand.length===0);
+
+  document.getElementById("yourTurnTag").classList.toggle("hidden", !amIturn);
 
   const nowTurnUid = currentPlayer ? currentPlayer.uid : null;
-  if (nowTurnUid === uid && lastTurnUid !== uid){ toast(t('toastTurn')); }
+  if (nowTurnUid === (auth.currentUser && auth.currentUser.uid) && lastTurnUid !== (auth.currentUser && auth.currentUser.uid)){ toast(t('toastTurn')); }
   lastTurnUid = nowTurnUid;
 
   renderHandOnly();
@@ -966,6 +1106,27 @@ function renderHandOnly(){
   document.getElementById("btnPlay").textContent = t('play', sel.size);
 }
 
+/* ===================== 离开房间（Guest） ===================== */
+function detachAll(){
+  unsubLobby && unsubLobby(); unsubLobby=null;
+  unsubState && unsubState(); unsubState=null;
+  unsubEvents && unsubEvents(); unsubEvents=null;
+  unsubMyHand && unsubMyHand(); unsubMyHand=null;
+}
+async function leaveRoomLocal(){
+  try { await sendAction({ type:'LEAVE_ROOM' }); } catch(e){}
+  detachAll();
+  localStorage.removeItem('lb_session');
+  ROOM_ID = null; isHost = false; myHand=[]; myHandHash=""; lastReveal=null; lastTurnUid=null;
+  document.getElementById("btnResetAll").classList.add('hidden');
+  document.getElementById("btnLeaveRoom").classList.add('hidden');
+  document.getElementById("hostPanel").classList.add('hidden');
+  document.getElementById("lobby").classList.add('hidden');
+  document.getElementById("game").classList.add('hidden');
+  document.getElementById("connect").classList.remove('hidden');
+  toast(LANG==='zh' ? '已退出房间' : 'Left the room');
+}
+
 /* ===================== 绑定事件 ===================== */
 document.getElementById("btnCreate").onclick = async ()=>{
   const name = (document.getElementById("nick").value||"Player").trim();
@@ -982,6 +1143,7 @@ document.getElementById("btnJoin").onclick = async ()=>{
 };
 
 document.getElementById("btnResetAll").onclick = ()=> location.reload();
+document.getElementById("btnLeaveRoom").onclick = leaveRoomLocal;
 
 async function applySettingsLocal(){ if (!isHost) return; await hostApplySettings(); }
 async function startLocal(){ if (!isHost) return; await hostStart(); }
@@ -992,6 +1154,18 @@ document.getElementById("seatMax").addEventListener("change", applySettingsLocal
 document.getElementById("startHand").addEventListener("change", applySettingsLocal);
 document.getElementById("btnStart").onclick = startLocal;
 document.getElementById("btnHostRestart").onclick = restartLocal;
+
+/* 游戏内 Host 新一局按钮 */
+document.getElementById("btnHostNewGame").onclick = async ()=>{
+  if (isHost) await hostNewGame(); else await sendAction({ type:'HOST_NEW_GAME' });
+};
+
+/* 胜利弹窗“再来一局” */
+document.getElementById("btnNewGame").onclick = async ()=>{
+  document.getElementById("winnerWrap").classList.add("hidden");
+  if (isHost) { await hostNewGame(); }
+  else { await sendAction({ type:'HOST_NEW_GAME' }); }
+};
 
 document.getElementById("btnPlay").onclick = async ()=>{
   if (selectedIndices.size===0) return toast(t('needOne'));
@@ -1017,7 +1191,13 @@ document.getElementById("btnLiar").onclick = async ()=>{
   await sendAction({ type:'LIAR' });
 };
 
-document.getElementById("btnReveal").onclick = async ()=>{ await sendAction({ type:'REVEAL' }); };
+document.getElementById("btnReveal").onclick = async ()=>{
+  const br = document.getElementById("btnReveal");
+  br.disabled = true;
+  try { await sendAction({ type:'REVEAL' }); }
+  finally { setTimeout(()=>{ br.disabled = false; }, 5000); }
+};
+
 document.getElementById("btnBackLobby").onclick = async ()=>{
   document.getElementById("winnerWrap").classList.add("hidden");
   await sendAction({ type:'BACK_TO_LOBBY' });
@@ -1025,14 +1205,17 @@ document.getElementById("btnBackLobby").onclick = async ()=>{
 
 document.getElementById("langSel").addEventListener("change", (e)=>{
   LANG = e.target.value;
+  localStorage.setItem('lb_lang', LANG);
   applyStaticTexts();
   if (L) renderLobbyLocal(L);
   if (S) renderAll();
 });
 
-// 页面加载时先尝试登录（让手机一进来就能看到 UID）
-ensureAuth().catch(()=>{});
-applyStaticTexts();
+// 页面加载：登录后尝试恢复会话；恢复失败就停在创建/加入页
+ensureAuth()
+  .then(()=> tryAutoResume())
+  .catch(()=>{})
+  .finally(()=> applyStaticTexts());
 </script>
 </body>
 </html>
