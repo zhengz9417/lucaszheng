@@ -145,7 +145,7 @@
       <div class="grid md:grid-cols-2 gap-4">
         <div>
           <label class="block text-sm opacity-90 mb-1" id="lblNick">你的昵称</label>
-          <input id="nick" class="w-full rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text-[15px]" placeholder="例如：Ann" />
+          <input id="nick" class="w-full rounded-xl bg-[#0b142a] border border-[#3b4a70] p-3 text-[15px]" placeholder="例如：Lucas" />
         </div>
         <div>
           <label class="block text-sm opacity-90 mb-1" id="lblRoom">房间号（加入时填写）</label>
@@ -301,7 +301,7 @@ const i18n = {
     winner:"胜利！", winText:"获得胜利 🎉", newGame:"新一局",
     claim:(who,target,count)=>`${who}：宣称 ${target} × ${count}`,
     rollBanner:(name,v,dead)=> dead ? `${name} 掷出 ${v} —— 淘汰！` : `${name} 掷出 ${v} —— 安全`,
-    phNick:"例如：Ann", phRoom:"例如：ABCD1",
+    phNick:"例如：Lucas", phRoom:"例如：ABCD1",
     chat:"聊天", chatHint:"本局内消息", chatPh:"说点什么…", send:"发送",
     closed:"房间已关闭",
     rulesSummary:"游戏规则", tipsSummary:"使用提醒",
@@ -327,7 +327,7 @@ const i18n = {
     winner:"Victory!", winText:"wins 🎉", newGame:"New Game",
     claim:(who,target,count)=>`${who}: claims ${target} × ${count}`,
     rollBanner:(name,v,dead)=> dead ? `${name} rolled ${v} — DEAD!` : `${name} rolled ${v} — safe`,
-    phNick:"e.g., Ann", phRoom:"e.g., ABCD1",
+    phNick:"e.g., Lucas", phRoom:"e.g., ABCD1",
     chat:"Chat", chatHint:"This game only", chatPh:"Say something…", send:"Send",
     closed:"Room closed",
     rulesSummary:"Rules", tipsSummary:"Tips",
@@ -342,12 +342,12 @@ const RULES_ZH = `
 <li><b>牌池：</b>A×6、Q×6、K×6、JOKER×2（JOKER 为万能牌）。</li>
 <li><b>开局：</b>2–4 人入座可开始；默认每人 5 张（Host 可调整）。</li>
 <li><b>目标：</b>每回合系统随机指定目标牌（A/Q/K），本轮所出的牌都视作目标牌。</li>
-<li><b>出牌：</b>轮到你时打出 ≥1 张并宣称“都是目标牌”（可真可假）。</li>
+<li><b>出牌：</b>轮到你时打出 ≥1 张并宣称“都是目标牌”（可真可假）；恶魔牌<b>只能单出</b>。</li>
 <li><b>质疑：</b>只有下家能点 <i>liar</i> 质疑上一家。</li>
 <li><b>判定：</b>只翻最近一次出牌；全中 → 质疑者失败；否则 → 出牌者失败。</li>
 <li><b>掷骰（失败者）：</b>掷到 <b>6</b> 立刻淘汰；非 6 记一次，<b>第二次掷到同点</b>也淘汰。</li>
 <li><b>两人对局：</b>若上一家把牌 <b>出完</b>，下家 <b>只能质疑</b>。</li>
-<li><b>三/四人对局：</b>若有人出完且下家<b>未质疑</b>，该玩家本回合<b>被跳过</b>直到重发牌；只会有<b>一个失败者</b>掷骰。</li>
+<li><b>三/四人对局：</b>有人出完且下家<b>未质疑</b>，该玩家本回合<b>被跳过</b>直到重发牌；仅有<b>一个失败者</b>掷骰。</li>
 <li><b>恶魔牌模式（可选）：</b>发牌时从<b>本回合目标牌</b>中随机 1 张变为恶魔牌（红字，<b>只能单出</b>）。若被质疑，<b>除出牌者外</b>所有存活玩家依次掷骰一次；JOKER 不受影响。</li>
 <li><b>回合结束：</b>给所有存活者用新牌堆重新发起手，清桌面，随机新目标；由本次胜者先手。</li>
 <li><b>胜利：</b>场上仅剩 1 名存活者。</li>
@@ -360,16 +360,16 @@ const RULES_EN = `
 <li><b>Deck:</b> A×6, Q×6, K×6, JOKER×2 (JOKER is wild).</li>
 <li><b>Start:</b> 2–4 seated players; default 5 cards each (host adjustable).</li>
 <li><b>Target:</b> Each round picks A/Q/K; cards are claimed as the target.</li>
-<li><b>Play:</b> On your turn, play ≥1 card and claim they match (truth or bluff).</li>
+<li><b>Play:</b> Play ≥1 card (no limit), claim they match; <b>Demon must be single-card</b>.</li>
 <li><b>Challenge:</b> Only the next player may press <i>liar</i> to challenge.</li>
 <li><b>Reveal:</b> Flip <b>only</b> the last batch; all match → challenger loses; otherwise → player loses.</li>
-<li><b>Dice (loser):</b> Roll a d6. <b>6</b> = instant death; repeating any non-6 pip a second time = death.</li>
-<li><b>2 players:</b> If the previous player <b>emptied</b> their hand, the next player <b>must challenge</b>.</li>
-<li><b>3–4 players:</b> If someone emptied and the next player <b>didn’t</b> challenge, that player is <b>skipped</b> for the rest of the round. Only <b>one</b> loser rolls.</li>
-<li><b>Demon Card (optional):</b> One random <b>current target</b> card becomes a Demon (red, <b>single-card only</b>). If challenged, <b>everyone except</b> its player rolls once; JOKER unaffected.</li>
-<li><b>Round end:</b> Re-deal fresh hands to all survivors, clear table, pick new target. Winner starts next round.</li>
+<li><b>Dice (loser):</b> d6; <b>6</b> = instant death; repeating any non-6 pip a second time = death.</li>
+<li><b>2 players:</b> If previous player <b>emptied</b> hand, the next player <b>must challenge</b>.</li>
+<li><b>3–4 players:</b> If someone emptied and the next didn’t challenge, that player is <b>skipped</b> for the rest of the round. Only <b>one</b> loser rolls.</li>
+<li><b>Demon (optional):</b> One random <b>current target</b> card becomes Demon (red, <b>single only</b>). If challenged, <b>everyone except</b> its player rolls once; JOKER unaffected.</li>
+<li><b>Round end:</b> Re-deal hands to survivors, clear table, pick new target. Winner starts.</li>
 <li><b>Win:</b> Last survivor.</li>
-<li><b>Spectate/Seats:</b> Not seated = spectating; no seating during a game; after a game, host may return to lobby to re-seat.</li>
+<li><b>Spectate/Seats:</b> Not seated = spectating; no seating mid-game; after a game, host may return to lobby to re-seat.</li>
 <li><b>Chat:</b> Visible to all; kept for the <b>current game</b> only.</li>
 <li><b>Room ID:</b> Shown in-game for late joiners.</li>
 </ul>`;
@@ -681,24 +681,23 @@ async function hostApplySettings(){
   await writeLobby();
 }
 
-/* 判断是否强制质疑（服务端硬规则） */
+/* ✅ 强制质疑：仅当“全场只有当前玩家有牌 && 上家刚出完牌(0张)”时成立 */
 function needForceLiarFor(uidX){
   if (!H.pot.length) return false;
   const lastBy = H.pot[H.pot.length-1].by;
   if (lastBy === uidX) return false;
 
-  const alivePlayers = H.players.filter(p=>p && p.alive);
-  // 情况1：只有两名存活，且上家已出完牌 → 必须质疑
-  if (alivePlayers.length===2){
-    const prevP = H.players.find(p=>p && p.uid===lastBy);
-    if (prevP && prevP.hand.length===0) return true;
-  }
-  // 情况2：除去 lastBy，只有当前玩家属于“未被跳过”的活跃玩家 → 必须质疑
-  const nonSafeUids = H.players.filter(p=>p && p.alive && !H.safe[p.uid]).map(p=>p.uid);
-  const othersNonSafeExcludingLast = nonSafeUids.filter(u=> u!==uidX && u!==lastBy);
-  if (othersNonSafeExcludingLast.length===0) return true;
+  const lastP = H.players.find(p=>p && p.uid===lastBy);
+  if (!lastP) return false;
 
-  return false;
+  // 只有当前玩家还握有手牌？
+  const holders = H.players.filter(p=>p && p.alive && p.hand && p.hand.length>0).map(p=>p.uid);
+  const onlyCurrentHasCards = (holders.length===1 && holders[0]===uidX);
+
+  // 上家刚把牌出完（此时 pot 的 lastBy 手牌为 0）
+  const lastJustEmptied = lastP.hand && lastP.hand.length===0;
+
+  return onlyCurrentHasCards && lastJustEmptied;
 }
 
 async function hostStart(){
@@ -733,7 +732,6 @@ async function hostNewGame(){
   H.players = H.players.map(p => p ? { ...p, alive:true, rolls:[], rollMap:{}, hand:[] } : p);
 
   const seated = H.players.filter(p=>p);
-  // 先目标，再生成牌堆
   H.target  = TARGETS[rnd(TARGETS.length)];
   const deck = makeCustomDeck(!!H.settings.demon, H.target);
   if (seated.length * H.settings.startHand > deck.length) {
@@ -797,7 +795,7 @@ async function hostRemovePlayer(guestUid){
 function aliveCount(){ return H.players.filter(p=>p && p.alive).length; }
 
 async function hostPlay(_uid, indices){
-  if (needForceLiarFor(_uid)) return; // 强制质疑禁止出牌
+  if (needForceLiarFor(_uid)) return; // ✅ 仅在“最后持牌者且上家刚出完”时禁止出牌
 
   // 若上一手有人刚出完且未被质疑，当前有人选择继续出牌 → 标记其为安全（被跳过）
   if (H.justEmptied && H.justEmptied !== _uid){
@@ -1292,14 +1290,12 @@ function renderAll(){
   const myUid = auth.currentUser && auth.currentUser.uid;
   const amIturn = (currentPlayer && currentPlayer.uid===myUid && currentPlayer.alive);
   const prevBy = S.lastClaim ? S.lastClaim.by : null;
-
-  // 客户端的“强制质疑”UI（近似判断；服务端有硬规则兜底）
-  const aliveN = (S.players||[]).filter(p=>p&&p.alive).length;
   const prevP = prevBy ? (S.players.find(p=>p && p.uid===prevBy)||null) : null;
-  const mustLiarUI = amIturn && !S.awaitingReveal && S.pot.length>0 && prevBy && prevBy!==myUid && (
-    (aliveN===2 && prevP && prevP.handCount===0) ||
-    (S.players.filter(p=>p&&p.alive && p.uid!==prevBy && p.uid!==myUid && p.handCount>0).length===0)
-  );
+
+  // ✅ 客户端提示：仅当“全场只有我有牌 && 上家刚出完牌”时，必须 liar
+  const holders = S.players.filter(p=>p&&p.alive && p.handCount>0).map(p=>p.uid);
+  const mustLiarUI = amIturn && !S.awaitingReveal && S.pot.length>0 && prevBy && prevBy!==myUid &&
+                     holders.length===1 && holders[0]===myUid && prevP && prevP.handCount===0;
 
   const liarBtn = document.getElementById("btnLiar");
   const canLiar = amIturn && !S.awaitingReveal && S.pot.length>0 && prevBy && prevBy!==myUid;
@@ -1551,4 +1547,3 @@ ensureAuth().then(()=> tryAutoResume()).catch(()=>{}).finally(()=> applyStaticTe
 </script>
 </body>
 </html>
-
