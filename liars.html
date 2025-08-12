@@ -117,7 +117,7 @@
       </div>
       <div class="flex items-center gap-2">
         <span id="authBadge" class="badge">Auth: —</span>
-        <!-- Host 顶部按钮改为：退出房间 -->
+        <!-- Host 顶部按钮：退出房间 -->
         <button id="btnResetAll" class="btn hidden">退出房间</button>
         <!-- Guest 退出房间 -->
         <button id="btnLeaveRoom" class="btn btn-danger hidden">退出房间</button>
@@ -471,7 +471,7 @@ async function hostInit(roomId, name){
 
   const { lobby, state } = roomRefs(ROOM_ID);
 
-  // 清理可能存在的旧 state 文档，避免误入游戏界面
+  // 清理旧 state（防止误入上一局）
   await state.delete().catch(()=>{});
 
   H = {
@@ -578,6 +578,16 @@ async function hostLeaveSpectate(_uid){
   await updateSpectators(list=> list.filter(x=>x.uid!==_uid));
 }
 
+/* === 关键修复：入座 === */
+async function hostTakeSeat(seat, _uid, name){
+  if (seat<0 || seat>=H.players.length) return;
+  if (H.roundNo>0) return; // 游戏进行中不允许入座（观战即可）
+  if (H.players[seat]) return;
+  if (H.players.findIndex(p=>p && p.uid===_uid)>=0) return;
+  H.players[seat] = { uid:_uid, name, alive:true, rolls:[], rollMap:{}, hand:[] };
+  await writeLobby();
+}
+
 /* 设置自动应用 */
 async function hostApplySettings(){
   const newSeats = Math.max(2, Math.min(4, Number(document.getElementById("seatMax").value||4)));
@@ -642,7 +652,7 @@ async function hostNewGame(){
   showSmoke();
 }
 
-/* 仅在 lobby 可“退出座位”——不写 state，避免提前创建 state 文档 */
+/* 大厅阶段可“退出座位” */
 async function hostRemoveSeat(guestUid){
   if (H.roundNo>0) return;
   const idx = H.players.findIndex(p=>p && p.uid===guestUid);
@@ -651,7 +661,7 @@ async function hostRemoveSeat(guestUid){
   await writeLobby();
 }
 
-/* 离开房间：未开局只写 lobby；开局中按规则判胜 */
+/* 离开房间（任何时刻） */
 async function hostRemovePlayer(guestUid){
   const idx = H.players.findIndex(p=>p && p.uid===guestUid);
   if (idx >= 0){
@@ -758,7 +768,7 @@ async function hostBackToLobbyReset(){
   enterLobbyUI();
 }
 
-/* Host 转移 */
+/* Host 转移（Host 退出房间时） */
 async function reassignHostIfNeeded(leavingUid){
   const { lobby } = roomRefs(ROOM_ID);
   const snap = await lobby.get();
@@ -845,7 +855,7 @@ async function sendChat(text){
 function renderChat(allMsgs){
   const cw = document.getElementById('chatWrap');
   if (!S || !cw) return;
-  const round = S.roundNo||0;
+  const round = (S.roundNo||0);
   const list = document.getElementById('chatList');
   list.innerHTML = '';
   const msgs = allMsgs.filter(m => (m.roundNo||0) === round);
