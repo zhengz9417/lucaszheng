@@ -70,7 +70,7 @@
       color:#99a; text-shadow:0 1px 0 rgba(0,0,0,.4);
     }
     .face-back .inner{ transform: rotateY(180deg); }
-    .card.sel .inner{ outline:2px solid --accent; box-shadow:0 0 0 6px rgba(125,211,252,.13); transform: translateY(-4px) }
+    .card.sel .inner{ outline:2px solid var(--accent); box-shadow:0 0 0 6px rgba(125,211,252,.13); transform: translateY(-4px) }
     .rank{font-size:22px; line-height:1}
     .glyph{font-size:16px; opacity:.85}
     .joker .front{ background:repeating-linear-gradient(45deg,#0e1833 0 7px,#0b142a 7px 14px); }
@@ -110,6 +110,7 @@
       </div>
       <div class="flex items-center gap-2">
         <span id="authBadge" class="badge">Auth: —</span>
+        <!-- 统一都显示“退出房间” -->
         <button id="btnLeaveRoom" class="btn btn-danger hidden">退出房间</button>
       </div>
     </div>
@@ -166,9 +167,9 @@
             <label class="text-sm opacity-80" id="lblStartHand">起始手牌</label>
             <input id="startHand" type="number" min="3" max="9" value="5" class="w-20 rounded-xl bg-[#0b142a] border border-[#3b4a70] p-2.5"/>
           </div>
-          <!-- “应用设置”去掉：改为变更即生效 -->
+          <!-- 应用设置按钮去掉（隐藏） -->
           <button id="btnApply" class="btn hidden">应用设置</button>
-          <!-- 大厅不显示“重开”，游戏内显示“新一局” -->
+          <!-- 大厅的“重开”去掉（隐藏），只保留游戏内的新一局 -->
           <button id="btnHostRestart" class="btn btn-amber hidden">重开</button>
           <button id="btnStart" class="btn btn-prim disabled:opacity-50" disabled>开始游戏</button>
         </div>
@@ -185,7 +186,7 @@
         <span class="badge"><span id="lblCurrent">当前：</span><b id="currentPlayer" class="text-emerald-300"></b></span>
         <span id="yourTurnTag" class="badge hidden ping" style="border-color:#34d399;color:#34d399">你的回合</span>
 
-        <!-- 游戏内：仅 Host 可见的新一局 -->
+        <!-- 游戏内：仅 Host 可见的新一局（开始游戏后再显示） -->
         <button id="btnHostNewGame" class="btn btn-amber hidden ml-auto">新一局</button>
       </div>
 
@@ -211,11 +212,11 @@
             <button id="btnLiar" class="btn btn-danger">liar</button>
             <button id="btnReveal" class="btn btn-amber hidden">翻开判定</button>
           </div>
-          <p class="opacity-80 text-sm mt-2" id="revealHint">只翻最近一次出牌，3 秒后判定并出现掷骰动画；失败者掷到 6 立刻死亡，或 2 次掷到同点则死亡。</p>
+          <p class="opacity-80 text-sm mt-2" id="revealHint">只翻最近一次出牌，3 秒后判定并出现掷骰动画；失败者掷到 6 立刻死亡，或掷到同点第二次死亡。</p>
         </div>
       </div>
 
-      <!-- 聊天 -->
+      <!-- —— 新增：聊天 —— -->
       <div class="mt-6">
         <h3 class="font-semibold mb-2">聊天室</h3>
         <div id="chatBox" class="rounded-xl border border-[#334155] bg-[#0b142a] p-3 max-h-64 overflow-y-auto"></div>
@@ -224,6 +225,7 @@
           <button id="btnSendChat" class="btn">发送</button>
         </div>
       </div>
+      <!-- —— 聊天结束 —— -->
 
       <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-6 hidden z-30">
         <div class="px-4 py-2 rounded-full shadow bg-black/70 text-white">提示</div>
@@ -253,17 +255,17 @@ let LANG = localStorage.getItem('lb_lang') || 'zh';
 const i18n = {
   zh:{back:"返回主网页", title:"Liar’s Bar",
     connectTitle:"进入或创建房间", nick:"你的昵称", room:"房间号（加入时填写）",
-    create:"我是主机（创建）", join:"加入房间",
+    create:"我是主机（创建房间）", join:"加入房间",
     localNote:"跨设备联机版（Firebase Firestore 实时）。",
     roomShow:"房间号：", role:"我的身份：", roleHost:"Host", roleGuest:"Guest",
     seats:"座位数（2–4）", startHand:"起始手牌",
-    start:"开始游戏", restart:"重开",
+    apply:"应用设置", start:"开始游戏", restart:"重开",
     seatsTip:"提示：点击空位即可入座；Host 调整座位数会出现/隐藏位置。",
     seatN:n=>`座位 ${n}`, joinSeat:"加入此座位", leaveSeat:"退出座位", seated:"在座", eliminated:"淘汰",
     round:"回合：", target:"目标：", current:"当前：", yourTurn:"你的回合",
     table:"桌面", recent:(name,c)=>`最近：${name} × ${c}`, myHand:"我的手牌（点击选择任意张）", actions:"操作",
     play:c=>`出牌（${c}）`, liar:"liar", reveal:"翻开判定",
-    revealHint:"只翻最近一次出牌，3 秒后判定并出现掷骰动画；失败者掷到 6 立刻死亡，或 2 次掷到同点则死亡。",
+    revealHint:"只翻最近一次出牌，3 秒后判定并出现掷骰动画；失败者掷到 6 立刻死亡，或掷到同点第二次死亡。",
     handCount:c=>`手牌 ${c}`, diceList:r=>`骰：${r}`, playing:"出牌中", unknown:"未知",
     toastTurn:"你的回合", needOne:"请选择至少 1 张", need2p:"至少需要 2 名玩家入座",
     notEnough:"牌不够，请调小起始手牌或座位数",
@@ -278,7 +280,7 @@ const i18n = {
     localNote:"Cross-device realtime (Firebase Firestore).",
     roomShow:"Room:", role:"Role:", roleHost:"Host", roleGuest:"Guest",
     seats:"Seats (2–4)", startHand:"Start hand",
-    start:"Start Game", restart:"Restart",
+    apply:"Apply", start:"Start Game", restart:"Restart",
     seatsTip:"Tip: click an empty seat to join; changing seats count shows/hides slots.",
     seatN:n=>`Seat ${n}`, joinSeat:"Join this seat", leaveSeat:"Leave seat", seated:"Seated", eliminated:"Eliminated",
     round:"Round:", target:"Target:", current:"Current:", yourTurn:"Your turn",
@@ -390,6 +392,7 @@ async function tryAutoResume(){
   document.getElementById("roomShow").textContent = ROOM_ID;
   document.getElementById("roleShow").textContent = isHost ? t('roleHost') : t('roleGuest');
   document.getElementById("hostPanel").classList.toggle('hidden', !isHost);
+  // Host 也显示“退出房间”
   document.getElementById("btnLeaveRoom").classList.remove('hidden');
   return true;
 }
@@ -456,6 +459,7 @@ async function hostInit(roomId, name){
   document.getElementById("roomShow").textContent = ROOM_ID;
   document.getElementById("roleShow").textContent = t('roleHost');
   document.getElementById("hostPanel").classList.remove('hidden');
+  // Host 顶栏也显示“退出房间”
   document.getElementById("btnLeaveRoom").classList.remove('hidden');
 }
 
@@ -556,7 +560,6 @@ async function hostStart(){
 }
 
 async function hostRestart(){
-  await clearChatHistory(); // 清空聊天
   H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
   H.players.forEach(p=>{ if(p){ p.alive=true; p.rolls=[]; p.rollMap={}; p.hand=[]; }});
   await sendHands();
@@ -566,8 +569,6 @@ async function hostRestart(){
 
 /* 游戏中“新一局” */
 async function hostNewGame(){
-  await clearChatHistory(); // 新一局前清空聊天
-
   H.players = H.players.map(p => p ? { ...p, alive:true, rolls:[], rollMap:{}, hand:[] } : p);
 
   const seated = H.players.filter(p=>p);
@@ -589,18 +590,18 @@ async function hostNewGame(){
   showSmoke();
 }
 
-/* 玩家离开（移除座位；如果当前手则推进回合） */
+/* 玩家离开（任何时刻，移除座位；如果是当前手则推进回合） */
 async function hostRemovePlayer(guestUid){
   const idx = H.players.findIndex(p=>p && p.uid===guestUid);
   if (idx < 0) return;
   const wasTurn = (H.turn === idx);
-  H.players[idx] = null; // 座位变空 —— 大厅同步能看到空位
+  H.players[idx] = null;
   if (wasTurn) H.turn = nextAliveFrom(H, idx);
   const alive = H.players.filter(p=>p && p.alive);
   if (alive.length <= 1){
     await writeState(true);
   }else{
-    await writeLobby(); // 关键：立刻写入，前端订阅能看到座位空出来
+    await writeLobby();
     await writeState();
   }
 }
@@ -705,7 +706,6 @@ async function redealFrom(startIndex){
 }
 
 async function hostBackToLobbyReset(){
-  await clearChatHistory(); // 回大厅也清空聊天
   H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
   H.target=null; H.turn=0;
   H.players.forEach(p=>{ if(p){ p.alive=true; p.rolls=[]; p.rollMap={}; p.hand=[]; }});
@@ -723,16 +723,6 @@ async function hostCloseRoom(){
   }catch(e){
     console.error('close room error', e);
   }
-}
-
-/* ===================== 聊天：清空历史（新一局/重开/回大厅时调用） ===================== */
-async function clearChatHistory(){
-  const { chat } = roomRefs(ROOM_ID);
-  // 批量删除最近 500 条（足够覆盖一局）
-  const snap = await chat.orderBy('ts').limitToLast(500).get();
-  const batch = db.batch();
-  snap.forEach(doc=> batch.delete(doc.ref));
-  if (!snap.empty) await batch.commit();
 }
 
 /* ===================== Host 监听 actions ===================== */
@@ -788,13 +778,14 @@ function attachCommonListeners(){
     // 房间关闭：所有客户端自动退出
     if (L.closed && ROOM_ID){
       alert(LANG==='zh' ? '房间已关闭' : 'Room closed by host');
-      leaveRoomLocal();
+      leaveRoomLocal(true); // silent sendAction
       return;
     }
 
     const imHost = (L.hostUid === (auth.currentUser && auth.currentUser.uid));
     isHost = imHost;
     document.getElementById("hostPanel").classList.toggle("hidden", !isHost);
+    // 顶栏退出对所有人可见
     document.getElementById("btnLeaveRoom").classList.remove("hidden");
 
     renderLobbyLocal(L);
@@ -810,11 +801,6 @@ function attachCommonListeners(){
   unsubState = state.onSnapshot((doc)=>{
     if (!doc.exists) return;
     S = doc.data();
-
-    // —— 根据状态决定当前显示页面 —— 
-    const started = (S.roundNo||0) > 0 || !!S.target;
-    if (started) enterGameUI(); else enterLobbyUI();
-
     renderAll();
   }, err=>{
     console.error('State listen error:', err);
@@ -861,9 +847,9 @@ function attachCommonListeners(){
     console.error('Hand listen error:', err);
   });
 
-  // —— 聊天订阅（按服务器时间 ts 排序，跨端实时 & 刷新不丢） ——
+  // 聊天订阅
   if (unsubChat) unsubChat();
-  unsubChat = chat.orderBy('ts').limitToLast(200).onSnapshot((qs)=>{
+  unsubChat = chat.orderBy('ts').limitToLast(100).onSnapshot((qs)=>{
     const box = document.getElementById('chatBox');
     if (!box) return;
     const items = [];
@@ -871,7 +857,7 @@ function attachCommonListeners(){
       const m = doc.data();
       const who = (m && m.name) ? m.name : '—';
       const txt = (m && m.text) ? m.text : '';
-      items.push(`<div class="text-sm"><span class="opacity-80">${escapeHTML(who)}：</span><span>${escapeHTML(txt)}</span></div>`);
+      items.push(`<div class="text-sm"><span class="opacity-80">${who}：</span><span>${escapeHTML(txt)}</span></div>`);
     });
     box.innerHTML = items.join('');
     box.scrollTop = box.scrollHeight;
@@ -940,6 +926,7 @@ function renderAll(){
   if (!S) return;
   if (!S.awaitingReveal) lastReveal = null;
 
+  // “新一局”按钮仅当已开始游戏才显示，且仅 Host
   const ngHost = document.getElementById('btnHostNewGame');
   if (ngHost) ngHost.classList.toggle('hidden', !(isHost && (S.roundNo||0) >= 1));
 
@@ -949,11 +936,12 @@ function renderAll(){
     winnerWrap.classList.remove("hidden");
     const ng = document.getElementById('btnNewGame');
     if (ng) ng.classList.toggle('hidden', !isHost);
-    launchConfetti(); // 只保留胜利撒花
+    launchConfetti();
   } else {
     winnerWrap.classList.add("hidden");
   }
 
+  enterGameUI();
   document.getElementById("roundNo").textContent = S.roundNo||1;
   document.getElementById("targetRank").textContent = S.target||"-";
   const currentSeat = S.turn;
@@ -1165,34 +1153,30 @@ function detachAll(){
   unsubMyHand && unsubMyHand(); unsubMyHand=null;
   unsubChat && unsubChat(); unsubChat=null;
 }
-async function leaveRoomLocal(){
+async function leaveRoomLocal(silent){
   try {
-    if (!isHost && ROOM_ID) { try { await sendAction({ type:'LEAVE_ROOM' }); } catch(e){} }
-  } finally {
-    detachAll();
-    localStorage.removeItem('lb_session');
-    ROOM_ID = null; isHost = false; myHand=[]; myHandHash=""; lastReveal=null; lastTurnUid=null;
-    document.getElementById("hostPanel").classList.add('hidden');
-    document.getElementById("lobby").classList.add('hidden');
-    document.getElementById("game").classList.add('hidden');
-    document.getElementById("connect").classList.remove('hidden');
-    document.getElementById("btnLeaveRoom").classList.add('hidden');
-    toast(LANG==='zh' ? '已退出房间' : 'Left the room');
-  }
+    if (!silent) await sendAction({ type:'LEAVE_ROOM' });
+  } catch(e){}
+  detachAll();
+  localStorage.removeItem('lb_session');
+  ROOM_ID = null; isHost = false; myHand=[]; myHandHash=""; lastReveal=null; lastTurnUid=null;
+  document.getElementById("hostPanel").classList.add('hidden');
+  document.getElementById("lobby").classList.add('hidden');
+  document.getElementById("game").classList.add('hidden');
+  document.getElementById("connect").classList.remove('hidden');
+  document.getElementById("btnLeaveRoom").classList.add('hidden');
+  toast(LANG==='zh' ? '已退出房间' : 'Left the room');
 }
 
 /* ===================== 聊天发送 ===================== */
 async function sendChat(text){
-  const val = (text || '').trim();
-  if (!val) return;
+  if (!text || !text.trim()) return;
   const { chat } = roomRefs(ROOM_ID);
   await ensureAuth();
-
-  // 写入数据库：仅依赖服务器时间 ts（跨端一致）
   await chat.add({
     uid: auth.currentUser.uid,
     name: me.name || 'Player',
-    text: val.slice(0, 500),
+    text: text.trim().slice(0, 500),
     ts: firebase.firestore.FieldValue.serverTimestamp()
   });
 }
@@ -1212,16 +1196,19 @@ document.getElementById("btnJoin").onclick = async ()=>{
   applyStaticTexts();
 };
 
-/* 顶栏“退出房间”：Host 先关闭房间，Guest 发送离房动作 */
+/* 顶栏“退出房间”：Host 会先关闭房间 */
 document.getElementById("btnLeaveRoom").onclick = async ()=>{
-  if (isHost && ROOM_ID){ await hostCloseRoom(); }
-  await leaveRoomLocal();
+  if (isHost && ROOM_ID){
+    await hostCloseRoom();
+  }
+  await leaveRoomLocal(true);
 };
 
 /* 自动应用设置（保留，下拉/输入即应用）；按钮已隐藏 */
 async function applySettingsLocal(){ if (!isHost) return; await hostApplySettings(); }
 async function startLocal(){ if (!isHost) return; await hostStart(); }
-
+// 大厅“重开”已隐藏，不再绑定
+document.getElementById("btnApply").onclick = applySettingsLocal;
 document.getElementById("seatMax").addEventListener("change", applySettingsLocal);
 document.getElementById("startHand").addEventListener("change", applySettingsLocal);
 document.getElementById("btnStart").onclick = startLocal;
@@ -1289,7 +1276,6 @@ document.getElementById('chatInput').addEventListener('keydown', async (e)=>{
   }
 });
 
-/* 语言切换：只刷新文案 & 重绘，不强制切屏（切屏由状态决定） */
 document.getElementById("langSel").addEventListener("change", (e)=>{
   LANG = e.target.value;
   localStorage.setItem('lb_lang', LANG);
