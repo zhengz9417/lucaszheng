@@ -194,6 +194,11 @@
             <label class="text-sm opacity-80" id="lblDemon">恶魔牌模式</label>
             <input id="demonMode" type="checkbox" class="w-5 h-5">
           </div>
+          <!-- 新增：赢家改名模式 -->
+          <div class="flex items-center gap-2">
+            <label class="text-sm opacity-80" id="lblRenameMode">赢家改名模式</label>
+            <input id="renameMode" type="checkbox" class="w-5 h-5">
+          </div>
           <button id="btnStart" class="btn btn-prim disabled:opacity-50" disabled>开始游戏</button>
         </div>
       </div>
@@ -248,7 +253,22 @@
       <div id="winnerWrap" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4 z-40">
         <div class="glass-strong rounded-2xl p-6 max-w-md w-full text-center">
           <h3 class="text-xl font-bold mb-2" id="winTitle">胜利！</h3>
-          <p class="mb-4"><span id="winnerName" class="font-semibold"></span> <span id="winText">获得胜利 🎉</span></p>
+          <p class="mb-3"><span id="winnerName" class="font-semibold"></span> <span id="winText">获得胜利 🎉</span></p>
+
+          <!-- 新增：赢家改名区块（仅开启模式且本机为胜者可见） -->
+          <div id="renameWrap" class="hidden text-left">
+            <div class="text-sm opacity-80 mb-2" id="renameHint">（赢家可改名一次，再继续游戏）</div>
+            <div class="grid grid-cols-1 gap-2">
+              <select id="renameTarget" class="rounded-xl bg-[#0b142a] border border-[#3b4a70] p-2.5"></select>
+              <input id="renameInput" maxlength="20" class="rounded-xl bg-[#0b142a] border border-[#3b4a70] p-2.5" placeholder="新名称（最多20字符）" />
+              <div class="flex gap-2 flex-wrap">
+                <button id="btnRename" class="btn">确认改名</button>
+                <button id="btnRenameAndNew" class="btn btn-amber">改名并新一局</button>
+              </div>
+            </div>
+            <hr class="border-[#334155] my-3"/>
+          </div>
+
           <div class="flex items-center justify-center gap-2 flex-wrap">
             <button id="btnNewGame" class="btn btn-prim hidden">再来一局</button>
             <button id="btnBackLobby" class="btn">返回大厅</button>
@@ -304,6 +324,15 @@ const i18n = {
     closed:"房间已关闭",
     rulesSummary:"游戏规则", tipsSummary:"使用提醒",
     toLobby:"返回大厅",
+    // 新增（赢家改名）
+    renameModeLabel:"赢家改名模式",
+    renameHint:"（赢家可改名一次，再继续游戏）",
+    renamePick:"选择玩家",
+    renameNew:"新名称",
+    renameConfirm:"确认改名",
+    renameAndNew:"改名并新一局",
+    renameOK:"已改名",
+    renameNeed:"请输入新名称",
   },
   en:{back:"Back to Home", title:"Liar’s Bar", refresh:"Leave room",
     connectTitle:"Join or Create a Room", nick:"Your nickname", room:"Room ID (to join)",
@@ -330,6 +359,15 @@ const i18n = {
     closed:"Room closed",
     rulesSummary:"Rules", tipsSummary:"Tips",
     toLobby:"Back to Lobby",
+    // rename
+    renameModeLabel:"Winner rename mode",
+    renameHint:"(Winner may rename one player, then continue)",
+    renamePick:"Choose a player",
+    renameNew:"New name",
+    renameConfirm:"Confirm rename",
+    renameAndNew:"Rename & New Game",
+    renameOK:"Renamed",
+    renameNeed:"Please enter a new name",
   }
 };
 function t(k,...a){ const v=i18n[LANG][k]; return typeof v==='function'?v(...a):(v??k); }
@@ -409,6 +447,7 @@ function applyStaticTexts(){
   document.getElementById('lblSeats').textContent = t('seats');
   document.getElementById('lblStartHand').textContent = t('startHand');
   document.getElementById('lblDemon').textContent = t('demonMode');
+  document.getElementById('lblRenameMode').textContent = t('renameModeLabel');
   document.getElementById('btnStart').textContent = t('start');
   document.getElementById('seatsTip').textContent = t('seatsTip');
 
@@ -434,6 +473,12 @@ function applyStaticTexts(){
   document.getElementById('lblChatHint').textContent = t('chatHint');
   document.getElementById('chatInput').placeholder = t('chatPh');
   document.getElementById('btnSendChat').textContent = t('send');
+
+  // 赢家改名区块
+  document.getElementById('renameHint').textContent = t('renameHint');
+  document.getElementById('renameInput').placeholder = LANG==='zh' ? "新名称（最多20字符）" : "New name (max 20)";
+  document.getElementById('btnRename').textContent = t('renameConfirm');
+  document.getElementById('btnRenameAndNew').textContent = t('renameAndNew');
 }
 
 /* ===================== Firebase 基础 ===================== */
@@ -482,7 +527,7 @@ async function tryAutoResume(){
     const stDoc = await roomRefs(ROOM_ID).state.get().catch(()=>null);
     const st = (stDoc && stDoc.exists) ? stDoc.data() : {};
     H = {
-      settings: lobbyDoc.data().settings || { seats:4, startHand:5, demon:false },
+      settings: lobbyDoc.data().settings || { seats:4, startHand:5, demon:false, rename:false },
       players: (lobbyDoc.data().seats||[]).map(s=> s? { uid:s.uid, name:s.name, alive:s.alive!==false, rolls:s.rolls||[], rollMap:{}, hand:[] } : null),
       roundNo: st.roundNo||0, target: st.target||null, turn: st.turn||0,
       pot:[], awaitingReveal: st.awaitingReveal||false, challengerId:null, revealing:false,
@@ -560,7 +605,7 @@ async function hostInit(roomId, name){
   await state.delete().catch(()=>{});
 
   H = {
-    settings:{ seats:4, startHand:5, demon:false },
+    settings:{ seats:4, startHand:5, demon:false, rename:false },
     players: new Array(4).fill(null),
     roundNo:0, target:null, turn:0,
     pot:[], awaitingReveal:false, challengerId:null,
@@ -646,7 +691,7 @@ async function emitEvent(type, payload){
 
 async function hostTakeSeat(seat, _uid, name){
   if (seat<0 || seat>=H.players.length) return;
-  if (H.roundNo>0) return; // 对局中不允许入座
+  if (H.roundNo>0) return;
   if (H.players[seat]) return;
   if (H.players.findIndex(p=>p && p.uid===_uid)>=0) return;
   H.players[seat] = { uid:_uid, name, alive:true, rolls:[], rollMap:{}, hand:[] };
@@ -664,21 +709,19 @@ async function hostApplySettings(){
   const newSeats = Math.max(2, Math.min(4, Number(document.getElementById("seatMax").value||4)));
   const startHand = Number(document.getElementById("startHand").value||5);
   const demon = !!document.getElementById("demonMode").checked;
+  const rename = !!document.getElementById("renameMode").checked;
   const oldSeats = H.players.length;
 
   // 重新塑形 seats，始终保证 Host 在 0 号位
   let arr = new Array(newSeats).fill(null);
-  // 先把现有玩家按原顺序塞进去（跳过 host，最后再放 host 到 0）
   const others = (H.players||[]).filter(p=>p && p.uid!==uid);
   for (let i=1, k=0; i<newSeats && k<others.length; i++, k++) arr[i] = others[k];
-
-  // 放 host 到 0
   arr[0] = { ...(H.players.find(p=>p && p.uid===uid) || { uid, name: me.name, alive:true, rolls:[], rollMap:{}, hand:[] }) };
 
   H.players = arr;
-  H.settings = { seats: newSeats, startHand, demon };
-  await writeLobby();          // ✅ canStart 会被正确刷新
-  await writeState(false);     // ✅ 清状态到大厅视图（roundNo 仍为 0 时只作为展示）
+  H.settings = { seats: newSeats, startHand, demon, rename };
+  await writeLobby();
+  await writeState(false);
 }
 
 /* ✅ 强制质疑：仅当“全场只有当前玩家有牌 && 上家刚出完牌(0张)”时成立 */
@@ -717,7 +760,7 @@ async function hostStart(){
   H.pot = []; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
 
   await sendHands();
-  await writeLobby();  // ✅ 确保 Lobby 快照中的 canStart/座位映射与开始后状态同步
+  await writeLobby();
   await writeState();
   showSmoke();
 }
@@ -748,13 +791,12 @@ async function hostNewGame(){
 }
 
 async function hostBackToLobbyReset(){
-  // ✅ 回到大厅：彻底复位为可重新入座/开始的状态
   H.roundNo = 0; H.pot=[]; H.awaitingReveal=false; H.challengerId=null; H.revealing=false;
   H.target=null; H.turn=0; H.safe={}; H.justEmptied=null;
   H.players.forEach(p=>{ if(p){ p.alive=true; p.rolls=[]; p.rollMap={}; p.hand=[]; }});
   await sendHands();
-  await writeLobby();      // 计算 canStart
-  await writeState(false); // 把 roundNo=0 的状态写出去，前端会展示大厅
+  await writeLobby();
+  await writeState(false);
   enterLobbyUI();
 }
 
@@ -790,137 +832,32 @@ async function hostRemovePlayer(guestUid){
   else { await writeLobby(); await writeState(); }
 }
 
-function aliveCount(){ return H.players.filter(p=>p && p.alive).length; }
-
-async function hostPlay(_uid, indices){
-  if (needForceLiarFor(_uid)) return;
-
-  if (H.justEmptied && H.justEmptied !== _uid){
-    H.safe[H.justEmptied] = true;
-    H.justEmptied = null;
-  }
-
-  const seat = H.players.findIndex(p=>p && p.uid===_uid);
-  if (seat !== H.turn) return;
-  const p = H.players[seat]; if (!p || !p.alive) return;
-  if (!Array.isArray(indices) || indices.length===0) return;
-
-  // 恶魔牌只能单出
-  const chosen = indices.map(i=>p.hand[i]);
-  if (chosen.some(c=>c && c.d) && indices.length!==1) return;
-
-  const sorted = [...indices].sort((a,b)=>b-a);
-  const cards=[]; for (const i of sorted){ if (i<0 || i>=p.hand.length) return; cards.push(p.hand.splice(i,1)[0]); }
-
-  H.pot.push({by:p.uid, cards, declared:H.target});
-  H.awaitingReveal=false; H.challengerId=null;
-
-  if (p.hand.length===0) H.justEmptied = p.uid;
-
-  H.turn = nextAliveFrom(H, H.turn);
-
-  await handsSetOne(p.uid, p.hand);
-  await writeState();
+/* === 新增：赢家改名 === */
+function soleAlivePlayer(){
+  const arr = H.players.filter(p=>p && p.alive);
+  return arr.length===1 ? arr[0] : null;
 }
-async function handsSetOne(uidX, hand){ const { hands } = roomRefs(ROOM_ID); await hands.doc(uidX).set({ ownerUid:uidX, hand }); }
-
-async function hostLiar(_uid){
-  H.challengerId = _uid;
-  H.awaitingReveal = true;
-  H.revealing = false;
-  H.justEmptied=null;
-  lastReveal = null;
-  await writeState();
+function sanitizeName(s){
+  const n = String(s||'').trim().slice(0,20);
+  return n.replace(/[\r\n\t]/g,'');
 }
+async function hostRenamePlayer(targetUid, newName, requesterUid){
+  if (!H.settings.rename) return;                   // 未开启模式
+  const winner = soleAlivePlayer();                 // 仅在已决出胜者时有效
+  if (!winner || requesterUid !== winner.uid) return;
 
-const DICE_TURNS = 14, DICE_BASE = 70, DICE_INC = 35, DICE_HOLD = 1000;
-function diceAnimMs(){ return (DICE_TURNS+1)*DICE_BASE + (DICE_TURNS*(DICE_TURNS+1)/2)*DICE_INC + DICE_HOLD; }
+  const clean = sanitizeName(newName);
+  if (!clean) return;
 
-async function hostReveal(){
-  if (!H.awaitingReveal || H.pot.length===0 || H.revealing) return;
-  H.revealing = true;
+  const idx = H.players.findIndex(p=>p && p.uid===targetUid);
+  if (idx<0) return;
 
-  const last = H.pot[H.pot.length-1];
-  lastReveal = last.cards.map(c=>({...c}));
-  await emitEvent("REVEAL_VIEW", { cards:last.cards.map(c=>({...c})) });
-
-  setTimeout(async ()=>{
-    const demonPlayed = !!(H.settings.demon && last.cards.some(c=>c.d));
-
-    if (demonPlayed){
-      const victims = H.players.filter(p=>p && p.alive && p.uid!==last.by);
-      let delay = 0;
-      for (const P of victims){
-        const roll = 1 + rnd(6);
-        setTimeout(()=> emitEvent("DICE_ANIM", { who:P.name, value:roll }), delay);
-        delay += diceAnimMs();
-        setTimeout(async ()=>{
-          P.rolls.push(roll); P.rollMap[roll]=(P.rollMap[roll]||0)+1;
-          const dieNow = (roll===6) || (P.rollMap[roll]>=2);
-          if (dieNow){ P.alive=false; P.hand=[]; await handsSetOne(P.uid, P.hand); }
-          await emitEvent("DICE_RESULT", { who:P.name, uid:P.uid, value:roll, died:dieNow });
-        }, delay);
-        delay += 120;
-      }
-      const startSeat = H.players.findIndex(p=>p && p.uid===last.by);
-      setTimeout(async ()=>{ await redealFrom(startSeat); H.revealing=false; }, delay+400);
-      return;
-    }
-
-    const truthful = last.cards.every(c=>isMatch(c, H.target));
-    const loserId  = truthful ? H.challengerId : last.by;
-    const winnerId = truthful ? last.by : H.challengerId;
-    const loserSeat  = H.players.findIndex(p=>p && p.uid===loserId);
-    const winnerSeat = H.players.findIndex(p=>p && p.uid===winnerId);
-    if (loserSeat<0) { H.revealing=false; return; }
-
-    const P = H.players[loserSeat];
-    const roll = 1 + rnd(6);
-
-    await emitEvent("DICE_ANIM", { who:P.name, value:roll });
-
-    setTimeout(async ()=>{
-      P.rolls.push(roll); P.rollMap[roll]=(P.rollMap[roll]||0)+1;
-      const dieNow = (roll===6) || (P.rollMap[roll]>=2);
-      if (dieNow){ P.alive=false; P.hand=[]; await handsSetOne(P.uid, P.hand); }
-
-      await emitEvent("DICE_RESULT", { who:P.name, uid:P.uid, value:roll, died:dieNow });
-
-      const startIndex = (winnerSeat>=0 && H.players[winnerSeat]?.alive) ? winnerSeat : nextAliveFrom(H, loserSeat);
-      setTimeout(async ()=>{ await redealFrom(startIndex); H.revealing = false; }, 1200);
-    }, diceAnimMs());
-  }, 3000);
-}
-
-async function redealFrom(startIndex){
-  H.awaitingReveal = false;
-  H.revealing = false;
-  H.safe = {}; H.justEmptied = null;
-
-  const alive = H.players.filter(p=>p && p.alive);
-  if (alive.length<=1){ await writeState(true); return; }
-
-  H.target = TARGETS[rnd(TARGETS.length)];
-  const deck = makeCustomDeck(!!H.settings.demon, H.target);
-
-  const need = alive.length * H.settings.startHand;
-  if (need > deck.length){ H.settings.startHand = Math.max(1, Math.floor(deck.length / alive.length)); }
-  for (const p of H.players){
-    if (p && p.alive) p.hand = deck.splice(0,H.settings.startHand);
-    else if (p) p.hand=[];
-  }
-  H.pot=[]; 
-  H.roundNo = (H.roundNo||0)+1;
-  H.turn = startIndex;
-  H.challengerId=null; lastReveal = null; lastTurnUid = null;
-
-  await sendHands();
+  H.players[idx].name = clean;
   await writeLobby();
-  await writeState();
-  showSmoke();
+  await writeState(true);
 }
 
-/* ===================== Host 监听 actions（含 CHAT 转事件） ===================== */
+/* ===================== Host 监听 actions（含 CHAT/RENAME） ===================== */
 let unsubActions = null;
 function attachHostActionListener(){
   if (hasHostAction) return;
@@ -948,6 +885,13 @@ function attachHostActionListener(){
           case 'CHAT':
             await emitEvent("CHAT", { uid:a.uid, name:a.name, text:(a.text||'').toString().slice(0,400), gameNo: H.gameNo||0, localId: a.localId||null });
             break;
+          case 'RENAME_PLAYER':
+            await hostRenamePlayer(a.targetUid, a.newName, a.uid);
+            break;
+          case 'RENAME_AND_NEW':
+            await hostRenamePlayer(a.targetUid, a.newName, a.uid);
+            await hostNewGame();
+            break;
         }
       } finally { await doc.ref.update({ processed:true, processedBy: uid }); }
     }
@@ -961,7 +905,7 @@ function attachHostActionListener(){
 /* ===================== 公用监听 & 聊天（顺序修复） ===================== */
 let unsubLobby=null, unsubState=null, unsubEvents=null, unsubMyHand=null;
 let chatCache = [];
-let chatArriveSeq = 0;   // ✅ 本地到达序号
+let chatArriveSeq = 0;
 let L=null, S=null, myHand=[], myHandHash="";
 let lastReveal=null, lastTurnUid=null;
 const processedEvents = new Set();
@@ -969,9 +913,8 @@ const processedEvents = new Set();
 function attachCommonListeners(){
   const { lobby, state, events, hands } = roomRefs(ROOM_ID);
 
-  // 新房间：清空聊天和事件缓存
   chatCache = [];
-  chatArriveSeq = 0; // ✅
+  chatArriveSeq = 0;
   processedEvents.clear();
   const chatListEl = document.getElementById('chatList'); if (chatListEl) chatListEl.innerHTML = '';
 
@@ -987,12 +930,17 @@ function attachCommonListeners(){
     document.getElementById("btnResetAll").classList.toggle("hidden", !isHost);
     document.getElementById("btnLeaveRoom").classList.toggle("hidden", isHost);
 
-    if (isHost && !hasHostAction) attachHostActionListener();
-
+    // 同步两个模式开关到 UI
     if (isHost){
       const dm = document.getElementById('demonMode');
       if (dm) dm.checked = !!(L.settings && L.settings.demon);
+      const rm = document.getElementById('renameMode');
+      if (rm) rm.checked = !!(L.settings && L.settings.rename);
     }
+
+    // 若我被改名，更新本地 me.name（用于后续聊天）
+    const mySeat = (L.seats||[]).find(s => s && s.uid === (auth.currentUser && auth.currentUser.uid));
+    if (mySeat && mySeat.name && mySeat.name !== me.name){ me.name = mySeat.name; }
 
     renderLobbyLocal(L);
     document.getElementById("roomShow").textContent = ROOM_ID;
@@ -1021,7 +969,6 @@ function attachCommonListeners(){
       const e = ch.doc.data();
       if (!e || !e.type) return;
 
-      // ✅ 聊天：处理 added + modified（不使用 processedEvents 去重）
       if (e.type === "CHAT"){
         const p = e.payload || {};
         if (ch.type === 'removed') {
@@ -1050,7 +997,6 @@ function attachCommonListeners(){
         return;
       }
 
-      // ✅ 非聊天：只处理 added，且用 processedEvents 去重
       if (ch.type !== 'added') return;
       if (processedEvents.has(id)) return;
       processedEvents.add(id);
@@ -1116,7 +1062,6 @@ function renderChat(){
   msgs.sort((a,b)=>{
     const ta = tsMs(a.ts), tb = tsMs(b.ts);
     if (ta !== tb) return ta - tb;
-    // 若时间相同或未回填，用 arrivalIdx 作为稳定顺序
     const aa = a.arrivalIdx||0, bb = b.arrivalIdx||0;
     if (aa !== bb) return aa - bb;
     return (a.id||'').localeCompare(b.id||'');
@@ -1195,12 +1140,7 @@ function renderLobbyLocal(lobby){
         <button class="btn ${canSit?'btn-green':'disabled:opacity-60'} w-full" ${canSit?'':'disabled'}>${canSit?t('joinSeat'):t('waitEnd')}</button>`;
       const btn = cell.querySelector('button');
       if (canSit){
-        btn.onclick = async ()=>{
-          try{
-            await sendAction({ type:'TAKE_SEAT', seat:i });
-            toast(LANG==='zh' ? '已发送加入座位请求' : 'Seat request sent');
-          }catch(e){}
-        };
+        btn.onclick = async ()=>{ try{ await sendAction({ type:'TAKE_SEAT', seat:i }); toast(LANG==='zh' ? '已发送加入座位请求' : 'Seat request sent'); }catch(e){} };
       }
     }
     seats.appendChild(cell);
@@ -1222,11 +1162,28 @@ function renderAll(){
   const winnerWrap = document.getElementById("winnerWrap");
   if (S.winner){
     document.getElementById("winnerName").textContent = S.winner.name;
+    // 赢家改名：仅在开启模式且当前胜者=自己时显示
+    const renameBox = document.getElementById('renameWrap');
+    const canRename = !!(L && L.settings && L.settings.rename) &&
+                      (S.winner && S.winner.uid === (auth.currentUser && auth.currentUser.uid));
+    renameBox.classList.toggle('hidden', !canRename);
+    if (canRename){
+      const sel = document.getElementById('renameTarget');
+      sel.innerHTML = '';
+      (S.players||[]).forEach(p=>{
+        if (!p) return;
+        const opt = document.createElement('option');
+        opt.value = p.uid; opt.textContent = p.name;
+        sel.appendChild(opt);
+      });
+    }
     winnerWrap.classList.remove("hidden");
     const ng = document.getElementById('btnNewGame');
     if (ng) ng.classList.toggle('hidden', !isHost);
     launchConfetti();
-  } else winnerWrap.classList.add("hidden");
+  } else {
+    winnerWrap.classList.add("hidden");
+  }
 
   enterGameUI();
   document.getElementById("roundNo").textContent = S.roundNo||1;
@@ -1298,11 +1255,7 @@ function renderAll(){
     });
 
     if (S.awaitingReveal && lastReveal){
-      requestAnimationFrame(()=>{
-        document.querySelectorAll('#pot .revealable.face-back').forEach(h=>{
-          h.classList.remove('face-back');
-        });
-      });
+      requestAnimationFrame(()=>{ document.querySelectorAll('#pot .revealable.face-back').forEach(h=>{ h.classList.remove('face-back'); }); });
     }
   }
   document.getElementById("lastClaim").textContent = S.lastClaim ? t('recent', (S.players.find(p=>p&&p.uid===S.lastClaim.by)||{}).name||t('unknown'), S.lastClaim.count) : "—";
@@ -1344,6 +1297,7 @@ function glyphFor(r){ switch(r){ case 'A': return '✪'; case 'K': return '♚';
 function cardFrontHTML(r){ return `<div class="front">${r!=='?'?`<span class="rank">${r==='JOKER'?'JK':r}</span><span class="glyph">${glyphFor(r)}</span>`:'<span class="rank">?</span>'}</div>`; }
 function cardBackHTML(){ return `<div class="back">🂠</div>`; }
 
+const DICE_TURNS = 14, DICE_BASE = 70, DICE_INC = 35, DICE_HOLD = 1000;
 function diceSVG(n){
   const spots = {1:[[50,50]],2:[[25,25],[75,75]],3:[[25,25],[50,50],[75,75]],
     4:[[25,25],[25,75],[75,25],[75,75]],5:[[25,25],[25,75],[50,50],[75,25],[75,75]],
@@ -1504,6 +1458,7 @@ async function startLocal(){ if (!isHost) return; await hostStart(); }
 document.getElementById("seatMax").addEventListener("change", applySettingsLocal);
 document.getElementById("startHand").addEventListener("change", applySettingsLocal);
 document.getElementById("demonMode").addEventListener("change", applySettingsLocal);
+document.getElementById("renameMode").addEventListener("change", applySettingsLocal);
 document.getElementById("btnStart").onclick = startLocal;
 
 document.getElementById("btnHostNewGame").onclick = async ()=>{ if (isHost) await hostNewGame(); else await sendAction({ type:'HOST_NEW_GAME' }); };
@@ -1541,17 +1496,22 @@ document.getElementById("btnReveal").onclick = async ()=>{
   finally { setTimeout(()=>{ br.disabled = false; }, 5000); }
 };
 
-/* 聊天 */
-document.getElementById('btnSendChat').onclick = async ()=>{
-  const inp = document.getElementById('chatInput');
-  const v = inp.value;
-  if (!v.trim()) return;
-  inp.value = '';
-  await sendChat(v);
+/* 赢家改名按钮事件 */
+document.getElementById('btnRename').onclick = async ()=>{
+  const sel = document.getElementById('renameTarget');
+  const inp = document.getElementById('renameInput');
+  const name = (inp.value||'').trim();
+  if (!name) return toast(t('renameNeed'));
+  await sendAction({ type:'RENAME_PLAYER', targetUid: sel.value, newName: name });
+  toast(t('renameOK'));
 };
-document.getElementById('chatInput').addEventListener('keydown', async (e)=>{
-  if (e.key==='Enter'){ e.preventDefault(); document.getElementById('btnSendChat').click(); }
-});
+document.getElementById('btnRenameAndNew').onclick = async ()=>{
+  const sel = document.getElementById('renameTarget');
+  const inp = document.getElementById('renameInput');
+  const name = (inp.value||'').trim();
+  if (!name) return toast(t('renameNeed'));
+  await sendAction({ type:'RENAME_AND_NEW', targetUid: sel.value, newName: name });
+};
 
 document.getElementById("langSel").addEventListener("change", (e)=>{
   LANG = e.target.value;
@@ -1563,6 +1523,105 @@ document.getElementById("langSel").addEventListener("change", (e)=>{
 
 // 页面加载
 ensureAuth().then(()=> tryAutoResume()).catch(()=>{}).finally(()=> applyStaticTexts());
+
+/* ====== 其余 Host 出牌/质疑/翻开逻辑（保持原样） ====== */
+async function handsSetOne(uidX, hand){ const { hands } = roomRefs(ROOM_ID); await hands.doc(uidX).set({ ownerUid:uidX, hand }); }
+async function hostPlay(_uid, indices){
+  if (needForceLiarFor(_uid)) return;
+  if (H.justEmptied && H.justEmptied !== _uid){ H.safe[H.justEmptied] = true; H.justEmptied = null; }
+  const seat = H.players.findIndex(p=>p && p.uid===_uid);
+  if (seat !== H.turn) return;
+  const p = H.players[seat]; if (!p || !p.alive) return;
+  if (!Array.isArray(indices) || indices.length===0) return;
+  const chosen = indices.map(i=>p.hand[i]);
+  if (chosen.some(c=>c && c.d) && indices.length!==1) return;
+  const sorted = [...indices].sort((a,b)=>b-a);
+  const cards=[]; for (const i of sorted){ if (i<0 || i>=p.hand.length) return; cards.push(p.hand.splice(i,1)[0]); }
+  H.pot.push({by:p.uid, cards, declared:H.target});
+  H.awaitingReveal=false; H.challengerId=null;
+  if (p.hand.length===0) H.justEmptied = p.uid;
+  H.turn = nextAliveFrom(H, H.turn);
+  await handsSetOne(p.uid, p.hand);
+  await writeState();
+}
+async function hostLiar(_uid){
+  H.challengerId = _uid;
+  H.awaitingReveal = true;
+  H.revealing = false;
+  H.justEmptied=null;
+  lastReveal = null;
+  await writeState();
+}
+function diceAnimMs(){ return (14+1)*70 + (14*(14+1)/2)*35 + 1000; }
+async function hostReveal(){
+  if (!H.awaitingReveal || H.pot.length===0 || H.revealing) return;
+  H.revealing = true;
+  const last = H.pot[H.pot.length-1];
+  lastReveal = last.cards.map(c=>({...c}));
+  await emitEvent("REVEAL_VIEW", { cards:last.cards.map(c=>({...c})) });
+  setTimeout(async ()=>{
+    const demonPlayed = !!(H.settings.demon && last.cards.some(c=>c.d));
+    if (demonPlayed){
+      const victims = H.players.filter(p=>p && p.alive && p.uid!==last.by);
+      let delay = 0;
+      for (const P of victims){
+        const roll = 1 + rnd(6);
+        setTimeout(()=> emitEvent("DICE_ANIM", { who:P.name, value:roll }), delay);
+        delay += diceAnimMs();
+        setTimeout(async ()=>{
+          P.rolls.push(roll); P.rollMap[roll]=(P.rollMap[roll]||0)+1;
+          const dieNow = (roll===6) || (P.rollMap[roll]>=2);
+          if (dieNow){ P.alive=false; P.hand=[]; await handsSetOne(P.uid, P.hand); }
+          await emitEvent("DICE_RESULT", { who:P.name, uid:P.uid, value:roll, died:dieNow });
+        }, delay);
+        delay += 120;
+      }
+      const startSeat = H.players.findIndex(p=>p && p.uid===last.by);
+      setTimeout(async ()=>{ await redealFrom(startSeat); H.revealing=false; }, delay+400);
+      return;
+    }
+    const truthful = last.cards.every(c=>isMatch(c, H.target));
+    const loserId  = truthful ? H.challengerId : last.by;
+    const winnerId = truthful ? last.by : H.challengerId;
+    const loserSeat  = H.players.findIndex(p=>p && p.uid===loserId);
+    const winnerSeat = H.players.findIndex(p=>p && p.uid===winnerId);
+    if (loserSeat<0) { H.revealing=false; return; }
+    const P = H.players[loserSeat];
+    const roll = 1 + rnd(6);
+    await emitEvent("DICE_ANIM", { who:P.name, value:roll });
+    setTimeout(async ()=>{
+      P.rolls.push(roll); P.rollMap[roll]=(P.rollMap[roll]||0)+1;
+      const dieNow = (roll===6) || (P.rollMap[roll]>=2);
+      if (dieNow){ P.alive=false; P.hand=[]; await handsSetOne(P.uid, P.hand); }
+      await emitEvent("DICE_RESULT", { who:P.name, uid:P.uid, value:roll, died:dieNow });
+      const startIndex = (winnerSeat>=0 && H.players[winnerSeat]?.alive) ? winnerSeat : nextAliveFrom(H, loserSeat);
+      setTimeout(async ()=>{ await redealFrom(startIndex); H.revealing = false; }, 1200);
+    }, diceAnimMs());
+  }, 3000);
+}
+async function redealFrom(startIndex){
+  H.awaitingReveal = false;
+  H.revealing = false;
+  H.safe = {}; H.justEmptied = null;
+  const alive = H.players.filter(p=>p && p.alive);
+  if (alive.length<=1){ await writeState(true); return; }
+  H.target = TARGETS[rnd(TARGETS.length)];
+  const deck = makeCustomDeck(!!H.settings.demon, H.target);
+  const need = alive.length * H.settings.startHand;
+  if (need > deck.length){ H.settings.startHand = Math.max(1, Math.floor(deck.length / alive.length)); }
+  for (const p of H.players){
+    if (p && p.alive) p.hand = deck.splice(0,H.settings.startHand);
+    else if (p) p.hand=[];
+  }
+  H.pot=[]; 
+  H.roundNo = (H.roundNo||0)+1;
+  H.turn = startIndex;
+  H.challengerId=null; lastReveal = null; lastTurnUid = null;
+  await sendHands();
+  await writeLobby();
+  await writeState();
+  showSmoke();
+}
 </script>
 </body>
 </html>
