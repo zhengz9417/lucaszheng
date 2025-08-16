@@ -70,15 +70,19 @@
       Portfolio
     </h2>
 
-    <!-- Tab Buttons Container (这里已内置 Music Demo 按钮) -->
+    <!-- Tab Buttons Container -->
     <div class="flex justify-center gap-4 mb-8 p-2 bg-gradient-to-r from-gray-800/50 via-gray-900/50 to-black/50 rounded-lg backdrop-blur-md">
       <a href="/lucaszheng/photos.html" target="_blank" class="px-6 py-2 text-sm font-medium text-white bg-transparent rounded-lg hover:bg-gray-600/30 transition">Photos</a>
 
-      <!-- ✅ 新增：Music Demo（链接到你的 music.html） -->
+      <!-- Music Demo -->
       <a href="/lucaszheng/music.html" target="_blank" class="px-6 py-2 text-sm font-medium text-white bg-transparent rounded-lg hover:bg-gray-600/30 transition">Music Demo</a>
 
       <button data-tab="projects" class="tab-btn px-6 py-2 text-sm font-medium text-gray-200 bg-transparent rounded-lg hover:bg-gray-600/30 transition focus:outline-none">Projects</button>
       <button data-tab="resume" class="tab-btn px-6 py-2 text-sm font-medium text-gray-300 bg-transparent rounded-lg hover:bg-gray-600/30 transition focus:outline-none">Resume</button>
+
+      <!-- ✅ New: Texas Hold’em -->
+      <a href="/lucaszheng/texas.html" target="_blank" class="px-6 py-2 text-sm font-medium text-white bg-transparent rounded-lg hover:bg-gray-600/30 transition">Texas Hold’em</a>
+
       <a href="/lucaszheng/liars.html" target="_blank" class="px-6 py-2 text-sm font-medium text-white bg-transparent rounded-lg hover:bg-gray-600/30 transition">Liar's Bar</a>
     </div>
 
@@ -128,7 +132,7 @@
 </section>
 
 <script>
-  // Tab logic for Projects & Resume（保留一份脚本即可）
+  // Tab logic for Projects & Resume
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(b => {
