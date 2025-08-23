@@ -36,7 +36,7 @@
       <p class="text-xs text-gray-400 mt-1">顺序播放 · 点击曲目可跳转 · 自动连播</p>
     </div>
 
-    <!-- 曲目列表（点击即播放） -->
+    <!-- 曲目列表 -->
     <section class="mt-5 max-w-md mx-auto w-full">
       <ol id="trackList" class="divide-y divide-white/10 border border-white/10 rounded-xl overflow-hidden bg-white/5">
         <!-- JS 动态插入 -->
@@ -51,10 +51,9 @@
   <div class="fixed bottom-0 left-0 right-0 z-20">
     <div class="backdrop-blur bg-black/70 border-t border-white/10">
       <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-        <!-- 音频标签（隐藏） -->
+        <!-- 隐藏 audio -->
         <audio id="player" preload="none" class="hidden"></audio>
 
-        <!-- 控制条 -->
         <div class="flex items-center gap-3">
           <button id="btnPrev" class="px-2 py-1 rounded-md border border-white/20 text-sm hover:bg-white/5">⏮</button>
           <button id="btnPlay" class="px-2 py-1 rounded-md border border-white/20 text-sm hover:bg-white/5">▶️</button>
@@ -68,7 +67,6 @@
               <span id="durTime" class="text-[10px] tabular-nums text-gray-400 w-10">0:00</span>
             </div>
           </div>
-          <!-- 循环按钮（整张循环开关） -->
           <button id="btnLoop" class="px-2 py-1 rounded-md border border-white/20 text-xs hover:bg-white/5" title="整张循环">循环</button>
         </div>
       </div>
@@ -82,7 +80,7 @@
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
 
-    // 专辑曲目（按给定顺序）
+    // 曲目清单
     const tracks = [
       { title: "1 intro",                file: "1 intro.m4a",                type: "audio/mp4"  },
       { title: "2 daylight concept",     file: "2 daylight concept.m4a",     type: "audio/mp4"  },
@@ -90,10 +88,10 @@
       { title: "4 weed fully complete",  file: "4 weed fully complete.mp3",  type: "audio/mpeg" },
       { title: "5 sheleft demo",         file: "5 sheleft demo.m4a",         type: "audio/mp4"  },
       { title: "6 swear concept",        file: "6 swear concept.m4a",        type: "audio/mp4"  },
-      { title: "hunniek bonus track",    file: "hunniek bonus track.mp3",    type: "audio/mpeg" }
+      { title: "hunniek bonus track",    file: "hunniek bonus track.mp3",    type: "audio/mpeg" },
+      { title: "Los Angles",             file: "Los Angles.mp3",             type: "audio/mpeg" }
     ];
 
-    // DOM
     const player = document.getElementById('player');
     const trackListEl = document.getElementById('trackList');
     const nowTitle = document.getElementById('nowTitle');
@@ -106,7 +104,7 @@
     const durTime = document.getElementById('durTime');
 
     let current = 0;
-    let albumLoop = true; // 自动连播到最后后是否回到第一首继续
+    let albumLoop = true;
 
     // 生成列表
     tracks.forEach((t, i) => {
@@ -121,18 +119,12 @@
       trackListEl.appendChild(li);
     });
 
-    function fmt(sec){
-      if (!isFinite(sec)) return "0:00";
-      const m = Math.floor(sec/60);
-      const s = Math.floor(sec%60);
-      return `${m}:${String(s).padStart(2,'0')}`;
-    }
+    function fmt(sec){ if (!isFinite(sec)) return "0:00"; const m=Math.floor(sec/60); const s=Math.floor(sec%60); return `${m}:${String(s).padStart(2,'0')}`; }
 
     function setSource(index, autoplay = false) {
       current = index;
       const t = tracks[current];
       const src = "musicdemo/" + encodeURIComponent(t.file);
-      // 切换音源
       player.src = src;
       player.type = t.type;
       nowTitle.textContent = t.title;
@@ -151,78 +143,26 @@
       btnPlay.textContent = player.paused ? "▶️" : "⏸";
     }
 
-    // 列表点击播放
     trackListEl.addEventListener('click', e => {
       const btn = e.target.closest('button[data-idx]');
       if (!btn) return;
-      const idx = Number(btn.dataset.idx);
-      setSource(idx, true);
+      setSource(Number(btn.dataset.idx), true);
     });
+    btnPlay.addEventListener('click', () => { if (!player.src) setSource(0,true); else if (player.paused) player.play(); else player.pause(); updatePlayButton(); });
+    btnPrev.addEventListener('click', () => { setSource((current - 1 + tracks.length) % tracks.length, true); });
+    btnNext.addEventListener('click', () => { setSource((current + 1) % tracks.length, true); });
+    btnLoop.addEventListener('click', () => { albumLoop=!albumLoop; btnLoop.classList.toggle('bg-white/10',albumLoop); btnLoop.textContent=albumLoop?'循环':'单次'; });
 
-    // 控件
-    btnPlay.addEventListener('click', () => {
-      if (!player.src) setSource(0, true);
-      else if (player.paused) player.play(); else player.pause();
-      updatePlayButton();
-    });
-    btnPrev.addEventListener('click', () => {
-      const next = (current - 1 + tracks.length) % tracks.length;
-      setSource(next, true);
-    });
-    btnNext.addEventListener('click', () => {
-      const next = (current + 1) % tracks.length;
-      setSource(next, true);
-    });
-    btnLoop.addEventListener('click', () => {
-      albumLoop = !albumLoop;
-      btnLoop.classList.toggle('bg-white/10', albumLoop);
-      btnLoop.textContent = albumLoop ? '循环' : '单次';
-    });
+    player.addEventListener('loadedmetadata', () => { durTime.textContent = fmt(player.duration); progress.value = 0; });
+    player.addEventListener('timeupdate', () => { if(player.duration){ progress.value = (player.currentTime/player.duration)*100; curTime.textContent=fmt(player.currentTime); durTime.textContent=fmt(player.duration);} });
+    progress.addEventListener('input', () => { if(player.duration) player.currentTime = (progress.value/100)*player.duration; });
 
-    // 进度条 & 时间
-    player.addEventListener('loadedmetadata', () => {
-      durTime.textContent = fmt(player.duration);
-      progress.value = 0;
-    });
-    player.addEventListener('timeupdate', () => {
-      if (player.duration) {
-        const p = (player.currentTime / player.duration) * 100;
-        progress.value = p;
-        curTime.textContent = fmt(player.currentTime);
-        durTime.textContent = fmt(player.duration);
-      }
-    });
-    progress.addEventListener('input', () => {
-      if (player.duration) {
-        player.currentTime = (progress.value / 100) * player.duration;
-      }
-    });
-
-    // 自动连播（到最后一首后根据开关决定是否回到第一首）
-    player.addEventListener('ended', () => {
-      if (current < tracks.length - 1) {
-        setSource(current + 1, true);
-      } else if (albumLoop) {
-        setSource(0, true);
-      } else {
-        player.currentTime = 0;
-        updatePlayButton();
-      }
-    });
-
+    player.addEventListener('ended', () => { if(current<tracks.length-1) setSource(current+1,true); else if(albumLoop) setSource(0,true); else {player.currentTime=0; updatePlayButton();} });
     player.addEventListener('play', updatePlayButton);
     player.addEventListener('pause', updatePlayButton);
 
-    // 键盘快捷键：空格播放/暂停，左右方向键切歌
-    window.addEventListener('keydown', (e)=>{
-      if (['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
-      if (e.code === 'Space'){ e.preventDefault(); btnPlay.click(); }
-      if (e.code === 'ArrowLeft'){ e.preventDefault(); btnPrev.click(); }
-      if (e.code === 'ArrowRight'){ e.preventDefault(); btnNext.click(); }
-    });
-
-    // 默认载入第一首但不自动播放
-    setSource(0, false);
+    // 默认加载第一首
+    setSource(0,false);
   </script>
 </body>
 </html>
