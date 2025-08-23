@@ -9,54 +9,55 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     body{font-family:Inter,ui-sans-serif,system-ui;-webkit-font-smoothing:antialiased}
-    .track-active{background-color:#111827;color:white}
+    .track-active{background-color:#1f2937;color:#fff} /* gray-800 */
   </style>
 </head>
-<body class="bg-gray-50 text-gray-900">
+<body class="bg-black text-gray-100">
 
   <!-- 顶部 -->
-  <header class="bg-white border-b border-gray-200 sticky top-0 z-10">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-      <a href="./" class="text-sm text-gray-600 hover:text-gray-900">&larr; Back to Home</a>
+  <header class="bg-black/60 border-b border-white/10 backdrop-blur sticky top-0 z-10">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+      <a href="./" class="text-sm text-gray-300 hover:text-white">&larr; Back to Home</a>
       <h1 class="text-base sm:text-lg font-semibold">Album — whos</h1>
       <span class="text-sm text-transparent select-none">.</span>
     </div>
   </header>
 
-  <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- 专辑卡片 -->
-    <section class="bg-white border border-gray-200 rounded-xl overflow-hidden">
-      <div class="grid md:grid-cols-[320px,1fr]">
-        <img src="images/blues.jpg" alt="Album cover: whos" class="w-full h-full object-cover">
-        <div class="p-5">
-          <h2 class="text-xl font-semibold">whos</h2>
-          <p class="text-xs text-gray-500 mt-1">顺序播放 · 点击曲目可跳转</p>
+  <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- 封面 -->
+    <div class="w-full max-w-md mx-auto">
+      <div class="rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-xl">
+        <img src="images/blues.jpg" alt="Album cover: whos" class="w-full aspect-square object-cover">
+      </div>
+      <h2 class="text-2xl font-semibold mt-4 text-white">whos</h2>
+      <p class="text-xs text-gray-400 mt-1">顺序播放 · 点击曲目可跳转</p>
+    </div>
 
-          <!-- 播放器 -->
-          <div class="mt-4 bg-gray-100 rounded-lg p-3">
-            <audio id="player" preload="none" class="w-full"></audio>
-            <div class="mt-3 flex items-center gap-2">
-              <button id="btnPrev" class="px-3 py-2 rounded-md border text-sm hover:bg-gray-50">⏮ 上一首</button>
-              <button id="btnPlay" class="px-3 py-2 rounded-md border text-sm hover:bg-gray-50">▶️ 播放</button>
-              <button id="btnNext" class="px-3 py-2 rounded-md border text-sm hover:bg-gray-50">⏭ 下一首</button>
-              <span id="nowTitle" class="ml-3 text-sm text-gray-600 truncate">—</span>
-            </div>
-          </div>
-
-          <!-- 曲目列表 -->
-          <ol id="trackList" class="mt-5 divide-y border rounded-lg overflow-hidden">
-            <!-- JS 动态插入 -->
-          </ol>
-
-          <p class="mt-3 text-[11px] text-gray-400">
-            * 文件请放在 <code>musicdemo/</code> 目录；含空格会自动编码，无需改名。
-          </p>
+    <!-- 播放器 -->
+    <section class="mt-6 max-w-md mx-auto w-full">
+      <div class="bg-white/5 border border-white/10 rounded-xl p-4">
+        <audio id="player" preload="none" class="w-full"></audio>
+        <div class="mt-3 flex items-center gap-2">
+          <button id="btnPrev" class="px-3 py-2 rounded-md border border-white/20 text-sm hover:bg-white/5">⏮ 上一首</button>
+          <button id="btnPlay" class="px-3 py-2 rounded-md border border-white/20 text-sm hover:bg-white/5">▶️ 播放</button>
+          <button id="btnNext" class="px-3 py-2 rounded-md border border-white/20 text-sm hover:bg-white/5">⏭ 下一首</button>
+          <span id="nowTitle" class="ml-3 text-sm text-gray-300 truncate">—</span>
         </div>
       </div>
     </section>
+
+    <!-- 曲目列表 -->
+    <section class="mt-4 max-w-md mx-auto w-full">
+      <ol id="trackList" class="divide-y divide-white/10 border border-white/10 rounded-xl overflow-hidden bg-white/5">
+        <!-- JS 动态插入 -->
+      </ol>
+      <p class="mt-3 text-[11px] text-gray-500">
+        * 文件请放在 <code>musicdemo/</code> 目录；含空格会自动编码，无需改名。
+      </p>
+    </section>
   </main>
 
-  <footer class="mt-10 py-8 text-center text-xs text-gray-400">
+  <footer class="mt-10 py-8 text-center text-xs text-gray-500">
     © <span id="year"></span> Lucas Zheng
   </footer>
 
@@ -88,7 +89,7 @@
       const li = document.createElement('li');
       li.className = "flex items-center justify-between text-sm";
       li.innerHTML = `
-        <button data-idx="${i}" class="w-full text-left px-3 py-2 hover:bg-gray-50">
+        <button data-idx="${i}" class="w-full text-left px-3 py-2 hover:bg-white/5">
           ${String(i+1).padStart(2,'0')}. ${t.title}
           <span class="ml-2 text-[11px] text-gray-400">${t.type.replace('audio/','')}</span>
         </button>
@@ -144,6 +145,7 @@
       setSource(next, true);
     });
 
+    // 顺序播放到末尾停止（如需整张循环，把 if/else 改为 setSource((current+1)%tracks.length, true)）
     player.addEventListener('ended', () => {
       if (current < tracks.length - 1) {
         setSource(current + 1, true);
@@ -156,6 +158,7 @@
     player.addEventListener('play', updatePlayButton);
     player.addEventListener('pause', updatePlayButton);
 
+    // 默认载入第一首但不自动播放
     setSource(0, false);
   </script>
 </body>
