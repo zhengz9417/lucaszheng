@@ -3,194 +3,160 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Music Demos — Lucas Zheng</title>
-  <meta name="description" content="Lucas's demo tracks" />
+  <title>whos — Lucas Zheng</title>
+  <meta name="description" content="Album: whos — sequential demo playback" />
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     body{font-family:Inter,ui-sans-serif,system-ui;-webkit-font-smoothing:antialiased}
+    .track-active{background-color:#111827;color:white}
   </style>
 </head>
 <body class="bg-gray-50 text-gray-900">
 
-  <!-- 顶部导航 -->
+  <!-- 顶部 -->
   <header class="bg-white border-b border-gray-200 sticky top-0 z-10">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
       <a href="./" class="text-sm text-gray-600 hover:text-gray-900">&larr; Back to Home</a>
-      <h1 class="text-base sm:text-lg font-semibold">Music Demos</h1>
+      <h1 class="text-base sm:text-lg font-semibold">Album — whos</h1>
       <span class="text-sm text-transparent select-none">.</span>
     </div>
   </header>
 
-  <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Tabs -->
-    <div class="flex items-center gap-2 mb-6">
-      <button data-tab="finished" class="tab-btn px-4 py-2 rounded-md text-sm bg-gray-900 text-white">基本完成</button>
-      <button data-tab="concepts" class="tab-btn px-4 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-100">Concepts</button>
-    </div>
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- 专辑卡片 -->
+    <section class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div class="grid md:grid-cols-[320px,1fr]">
+        <img src="images/blues.jpg" alt="Album cover: whos" class="w-full h-full object-cover">
+        <div class="p-5">
+          <h2 class="text-xl font-semibold">whos</h2>
+          <p class="text-xs text-gray-500 mt-1">顺序播放 · 点击曲目可跳转</p>
 
-    <!-- 基本完成 -->
-    <section id="finished" class="tab-pane grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <!-- LONDON 11 June 2023 (mp3) -->
-      <article class="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <img src="images/albumcover1.jpg" alt="Cover: LONDON (demo)" class="w-full aspect-[4/3] object-cover">
-        <div class="p-4">
-          <h2 class="font-semibold text-sm mb-1">LONDON 11 June 2023 (demo)</h2>
-          <p class="text-xs text-gray-500 mb-3">基本完成 · mp3</p>
-          <audio controls preload="none" class="w-full">
-            <source src="musicdemo/LONDON%2011%20June%202023.mp3" type="audio/mpeg">
-          </audio>
-        </div>
-      </article>
+          <!-- 播放器 -->
+          <div class="mt-4 bg-gray-100 rounded-lg p-3">
+            <audio id="player" preload="none" class="w-full"></audio>
+            <div class="mt-3 flex items-center gap-2">
+              <button id="btnPrev" class="px-3 py-2 rounded-md border text-sm hover:bg-gray-50">⏮ 上一首</button>
+              <button id="btnPlay" class="px-3 py-2 rounded-md border text-sm hover:bg-gray-50">▶️ 播放</button>
+              <button id="btnNext" class="px-3 py-2 rounded-md border text-sm hover:bg-gray-50">⏭ 下一首</button>
+              <span id="nowTitle" class="ml-3 text-sm text-gray-600 truncate">—</span>
+            </div>
+          </div>
 
-      <!-- sheleft new (m4a) -->
-      <article class="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <img src="images/albumcover2.jpg" alt="Cover: sheleft new (demo)" class="w-full aspect-[4/3] object-cover">
-        <div class="p-4">
-          <h2 class="font-semibold text-sm mb-1">sheleft new (demo)</h2>
-          <p class="text-xs text-gray-500 mb-3">基本完成 · m4a</p>
-          <audio controls preload="none" class="w-full">
-            <source src="musicdemo/sheleft%20new.m4a" type="audio/mp4">
-          </audio>
-        </div>
-      </article>
+          <!-- 曲目列表 -->
+          <ol id="trackList" class="mt-5 divide-y border rounded-lg overflow-hidden">
+            <!-- JS 动态插入 -->
+          </ol>
 
-      <!-- Melodic Demo1 (m4a) -->
-      <article class="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <img src="images/albumcover3.jpg" alt="Cover: Melodic Demo1 (demo)" class="w-full aspect-[4/3] object-cover">
-        <div class="p-4">
-          <h2 class="font-semibold text-sm mb-1">Melodic Demo1 (demo)</h2>
-          <p class="text-xs text-gray-500 mb-3">基本完成 · m4a</p>
-          <audio controls preload="none" class="w-full">
-            <source src="musicdemo/Melodic%20Demo1.m4a" type="audio/mp4">
-          </audio>
+          <p class="mt-3 text-[11px] text-gray-400">
+            * 文件请放在 <code>musicdemo/</code> 目录；含空格会自动编码，无需改名。
+          </p>
         </div>
-      </article>
-
-      <!-- Obsessed (mp3) -->
-      <article class="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <img src="images/1.jpg" alt="Cover: Obsessed (demo)" class="w-full aspect-[4/3] object-cover">
-        <div class="p-4">
-          <h2 class="font-semibold text-sm mb-1">Obsessed (demo)</h2>
-          <p class="text-xs text-gray-500 mb-3">基本完成 · mp3</p>
-          <audio controls preload="none" class="w-full">
-            <source src="musicdemo/Obsessed.mp3" type="audio/mpeg">
-          </audio>
-        </div>
-      </article>
-
-      <!-- all i need is you(demo) (mp3) -->
-      <article class="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <img src="images/2.jpg" alt="Cover: all i need is you (demo)" class="w-full aspect-[4/3] object-cover">
-        <div class="p-4">
-          <h2 class="font-semibold text-sm mb-1">all i need is you (demo)</h2>
-          <p class="text-xs text-gray-500 mb-3">基本完成 · mp3</p>
-          <audio controls preload="none" class="w-full">
-            <source src="musicdemo/all%20i%20need%20is%20you%28demo%29.mp3" type="audio/mpeg">
-          </audio>
-        </div>
-      </article>
-
-      <!-- daylight (m4a) -->
-      <article class="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <img src="images/5.jpg" alt="Cover: daylight (demo)" class="w-full aspect-[4/3] object-cover">
-        <div class="p-4">
-          <h2 class="font-semibold text-sm mb-1">daylight (demo)</h2>
-          <p class="text-xs text-gray-500 mb-3">基本完成 · m4a</p>
-          <audio controls preload="none" class="w-full">
-            <source src="musicdemo/daylight.m4a" type="audio/mp4">
-          </audio>
-        </div>
-      </article>
+      </div>
     </section>
-
-    <!-- Concepts -->
-    <section id="concepts" class="tab-pane hidden grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <!-- A (m4a) -->
-      <article class="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <img src="images/3.jpg" alt="Cover: A (demo)" class="w-full aspect-[4/3] object-cover">
-        <div class="p-4">
-          <h2 class="font-semibold text-sm mb-1">A (demo)</h2>
-          <p class="text-xs text-gray-500 mb-3">Concept · m4a</p>
-          <audio controls preload="none" class="w-full">
-            <source src="musicdemo/A.m4a" type="audio/mp4">
-          </audio>
-        </div>
-      </article>
-
-      <!-- Swear (m4a) -->
-      <article class="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <img src="images/4.jpg" alt="Cover: Swear (demo)" class="w-full aspect-[4/3] object-cover">
-        <div class="p-4">
-          <h2 class="font-semibold text-sm mb-1">Swear (demo)</h2>
-          <p class="text-xs text-gray-500 mb-3">Concept · m4a</p>
-          <audio controls preload="none" class="w-full">
-            <source src="musicdemo/Swear.m4a" type="audio/mp4">
-          </audio>
-        </div>
-      </article>
-
-      <!-- hunnie k (mp3) -->
-      <article class="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <img src="images/6.jpg" alt="Cover: hunnie k (demo)" class="w-full aspect-[4/3] object-cover">
-        <div class="p-4">
-          <h2 class="font-semibold text-sm mb-1">hunnie k (demo)</h2>
-          <p class="text-xs text-gray-500 mb-3">Concept · mp3</p>
-          <audio controls preload="none" class="w-full">
-            <source src="musicdemo/hunnie%20k.mp3" type="audio/mpeg">
-          </audio>
-        </div>
-      </article>
-
-      <!-- swing (mp3) -->
-      <article class="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <img src="images/hawaiifronter.jpg" alt="Cover: swing (demo)" class="w-full aspect-[4/3] object-cover">
-        <div class="p-4">
-          <h2 class="font-semibold text-sm mb-1">swing (demo)</h2>
-          <p class="text-xs text-gray-500 mb-3">Concept · mp3</p>
-          <audio controls preload="none" class="w-full">
-            <source src="musicdemo/swing.mp3" type="audio/mpeg">
-          </audio>
-        </div>
-      </article>
-
-      <!-- Salmon (m4a) — 封面 daisy.jpg -->
-      <article class="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <img src="images/daisy.jpg" alt="Cover: Salmon (demo)" class="w-full aspect-[4/3] object-cover">
-        <div class="p-4">
-          <h2 class="font-semibold text-sm mb-1">Salmon (demo)</h2>
-          <p class="text-xs text-gray-500 mb-3">Concept · m4a</p>
-          <audio controls preload="none" class="w-full">
-            <source src="musicdemo/Salmon.m4a" type="audio/mp4">
-          </audio>
-        </div>
-      </article>
-    </section>
-
-    <p class="mt-8 text-xs text-gray-500">
-      * 如遇 404，请确认 <code>musicdemo/</code> 与 <code>images/</code> 下的文件名与大小写完全一致；含空格/括号的URL已编码（例：<code>%20</code>、<code>%28</code>、<code>%29</code>）。
-    </p>
   </main>
 
-  <footer class="mt-12 py-8 text-center text-xs text-gray-400">
+  <footer class="mt-10 py-8 text-center text-xs text-gray-400">
     © <span id="year"></span> Lucas Zheng
   </footer>
 
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
 
-    // Tab 切换
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    const panes = document.querySelectorAll('.tab-pane');
-    tabBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        tabBtns.forEach(b => b.classList.remove('bg-gray-900','text-white'));
-        tabBtns.forEach(b => b.classList.add('text-gray-700'));
-        panes.forEach(p => p.classList.add('hidden'));
-        btn.classList.add('bg-gray-900','text-white');
-        document.getElementById(btn.dataset.tab).classList.remove('hidden');
-      });
+    // 按照你提供的顺序（文件位于 /musicdemo）
+    const tracks = [
+      { title: "1 intro",                file: "1 intro.m4a",                type: "audio/mp4"  },
+      { title: "2 daylight concept",     file: "2 daylight concept.m4a",     type: "audio/mp4"  },
+      { title: "3 melodic demo",         file: "3 melodic demo.m4a",         type: "audio/mp4"  },
+      { title: "4 weed fully complete",  file: "4 weed fully complete.mp3",  type: "audio/mpeg" },
+      { title: "5 sheleft demo",         file: "5 sheleft demo.m4a",         type: "audio/mp4"  },
+      { title: "6 swear concept",        file: "6 swear concept.m4a",        type: "audio/mp4"  },
+      { title: "hunniek bonus track",    file: "hunniek bonus track.mp3",    type: "audio/mpeg" }
+    ];
+
+    const player = document.getElementById('player');
+    const trackListEl = document.getElementById('trackList');
+    const nowTitle = document.getElementById('nowTitle');
+    const btnPlay = document.getElementById('btnPlay');
+    const btnPrev = document.getElementById('btnPrev');
+    const btnNext = document.getElementById('btnNext');
+
+    let current = 0;
+
+    // 生成列表
+    tracks.forEach((t, i) => {
+      const li = document.createElement('li');
+      li.className = "flex items-center justify-between text-sm";
+      li.innerHTML = `
+        <button data-idx="${i}" class="w-full text-left px-3 py-2 hover:bg-gray-50">
+          ${String(i+1).padStart(2,'0')}. ${t.title}
+          <span class="ml-2 text-[11px] text-gray-400">${t.type.replace('audio/','')}</span>
+        </button>
+      `;
+      trackListEl.appendChild(li);
     });
+
+    function setSource(index, autoplay = false) {
+      current = index;
+      const t = tracks[current];
+      const src = "musicdemo/" + encodeURIComponent(t.file);
+      player.src = src;
+      player.type = t.type;
+      nowTitle.textContent = `${t.title}`;
+      highlight();
+      if (autoplay) player.play().catch(()=>{});
+      updatePlayButton();
+    }
+
+    function highlight() {
+      [...trackListEl.querySelectorAll('button')].forEach(btn => {
+        btn.classList.remove('track-active');
+      });
+      const btn = trackListEl.querySelector(`button[data-idx="${current}"]`);
+      if (btn) btn.classList.add('track-active');
+    }
+
+    function updatePlayButton() {
+      btnPlay.textContent = player.paused ? "▶️ 播放" : "⏸ 暂停";
+    }
+
+    // 事件绑定
+    trackListEl.addEventListener('click', e => {
+      const btn = e.target.closest('button[data-idx]');
+      if (!btn) return;
+      const idx = Number(btn.dataset.idx);
+      setSource(idx, true);
+    });
+
+    btnPlay.addEventListener('click', () => {
+      if (player.src === '') setSource(0, true);
+      else if (player.paused) player.play(); else player.pause();
+      updatePlayButton();
+    });
+
+    btnPrev.addEventListener('click', () => {
+      const next = (current - 1 + tracks.length) % tracks.length;
+      setSource(next, true);
+    });
+
+    btnNext.addEventListener('click', () => {
+      const next = (current + 1) % tracks.length;
+      setSource(next, true);
+    });
+
+    player.addEventListener('ended', () => {
+      if (current < tracks.length - 1) {
+        setSource(current + 1, true);
+      } else {
+        player.currentTime = 0;
+        updatePlayButton();
+      }
+    });
+
+    player.addEventListener('play', updatePlayButton);
+    player.addEventListener('pause', updatePlayButton);
+
+    setSource(0, false);
   </script>
 </body>
 </html>
