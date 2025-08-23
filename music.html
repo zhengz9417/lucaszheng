@@ -51,8 +51,8 @@
   <div class="fixed bottom-0 left-0 right-0 z-20">
     <div class="backdrop-blur bg-black/70 border-t border-white/10">
       <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-        <!-- 隐藏 audio -->
-        <audio id="player" preload="none" class="hidden"></audio>
+        <!-- audio 元素 -->
+        <audio id="player" preload="metadata"></audio>
 
         <div class="flex items-center gap-3">
           <button id="btnPrev" class="px-2 py-1 rounded-md border border-white/20 text-sm hover:bg-white/5">⏮</button>
@@ -126,7 +126,6 @@
       const t = tracks[current];
       const src = "musicdemo/" + encodeURIComponent(t.file);
       player.src = src;
-      player.type = t.type;
       nowTitle.textContent = t.title;
       highlight();
       if (autoplay) player.play().catch(()=>{});
@@ -136,3 +135,38 @@
     function highlight() {
       [...trackListEl.querySelectorAll('button')].forEach(btn => btn.classList.remove('track-active'));
       const btn = trackListEl.querySelector(`button[data-idx="${current}"]`);
+      if (btn) btn.classList.add('track-active');
+    }
+
+    function updatePlayButton() {
+      btnPlay.textContent = player.paused ? "▶️" : "⏸";
+    }
+
+    // 事件
+    trackListEl.addEventListener('click', e => {
+      const btn = e.target.closest('button[data-idx]');
+      if (!btn) return;
+      setSource(Number(btn.dataset.idx), true);
+    });
+    btnPlay.addEventListener('click', () => { if (!player.src) setSource(0,true); else if (player.paused) player.play(); else player.pause(); updatePlayButton(); });
+    btnPrev.addEventListener('click', () => { setSource((current - 1 + tracks.length) % tracks.length, true); });
+    btnNext.addEventListener('click', () => { setSource((current + 1) % tracks.length, true); });
+    btnLoop.addEventListener('click', () => { albumLoop=!albumLoop; btnLoop.classList.toggle('bg-white/10',albumLoop); btnLoop.textContent=albumLoop?'循环':'单次'; });
+
+    player.addEventListener('loadedmetadata', () => { durTime.textContent = fmt(player.duration); progress.value = 0; });
+    player.addEventListener('timeupdate', () => { if(player.duration){ progress.value = (player.currentTime/player.duration)*100; curTime.textContent=fmt(player.currentTime); durTime.textContent=fmt(player.duration);} });
+    progress.addEventListener('input', () => { if(player.duration) player.currentTime = (progress.value/100)*player.duration; });
+
+    player.addEventListener('ended', () => { 
+      if(current<tracks.length-1) setSource(current+1,true); 
+      else if(albumLoop) setSource(0,true); 
+      else {player.currentTime=0; updatePlayButton();}
+    });
+    player.addEventListener('play', updatePlayButton);
+    player.addEventListener('pause', updatePlayButton);
+
+    // 默认载入第一首
+    setSource(0,false);
+  </script>
+</body>
+</html>
