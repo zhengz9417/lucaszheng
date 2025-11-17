@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lucas — Articles</title>
+  
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Inter Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .article-card:hover {
+      transform: translateY(-4px);
+      transition: 0.2s ease;
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50">
+
+  <!-- Navigation -->
+  <nav class="bg-white shadow-lg fixed w-full z-10 top-0">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16">
+        <div class="flex items-center">
+          <img src="images/columbia_engineering.png" class="h-8 mr-2" />
+          <h1 class="text-2xl italic text-gray-900" style="font-family:'Times New Roman'">Lucas Zheng</h1>
+        </div>
+
+        <div class="flex items-center space-x-4">
+          <a href="/lucaszheng/index.html" class="text-gray-600 hover:text-blue-600 px-3 py-2 text-sm font-medium">Home</a>
+          <a href="#articles" class="text-gray-600 hover:text-blue-600 px-3 py-2 text-sm font-medium">Articles</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+
+  <!-- Header -->
+  <header class="pt-28 pb-10 text-center">
+    <h2 class="text-4xl font-bold text-gray-900" style="font-family:'Times New Roman'">Articles</h2>
+    <p class="text-gray-600 mt-2 text-lg">Thoughts, research, and personal insights.</p>
+  </header>
+
+
+  <!-- Articles List -->
+  <section id="articles" class="max-w-5xl mx-auto px-4 pb-20">
+
+    <!-- Article Card -->
+    <a href="articles/the-great-disconnect.html" class="block">
+      <div class="article-card bg-white shadow-md rounded-xl p-6 mb-6 hover:shadow-xl">
+        <h3 class="text-xl font-semibold text-gray-900">The Great Disconnect: Market Panic vs. Circle’s Q3 Fundamentals</h3>
+        <p class="text-gray-600 mt-2">
+          A breakdown of why Circle's business fundamentals are expanding even while crypto markets panic —
+          and why the long-term thesis looks stronger than ever.
+        </p>
+        <p class="mt-3 text-blue-600 hover:underline text-sm">Read more →</p>
+      </div>
+    </a>
+
+    <!-- Future Article Template (你新增文章就复制) -->
+    <!--
+    <a href="articles/your-next-article.html" class="block">
+      <div class="article-card bg-white shadow-md rounded-xl p-6 mb-6 hover:shadow-xl">
+        <h3 class="text-xl font-semibold text-gray-900">文章标题</h3>
+        <p class="text-gray-600 mt-2">文章简介……</p>
+        <p class="mt-3 text-blue-600 hover:underline text-sm">Read more →</p>
+      </div>
+    </a>
+    -->
+
+  </section>
+
+</body>
+</html>
