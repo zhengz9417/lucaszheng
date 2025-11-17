@@ -10,6 +10,14 @@
 
   <style>
     body { font-family: 'Inter', sans-serif; }
+
+    /* Lightbox styles */
+    .lightbox {
+      display: none;
+    }
+    .lightbox:target {
+      display: flex;
+    }
   </style>
 </head>
 
@@ -20,6 +28,7 @@
     <a href="/lucaszheng/articles.html" class="text-blue-600 hover:underline">&larr; Back to Articles</a>
   </div>
 
+  <!-- Main Article -->
   <article class="max-w-3xl mx-auto px-4 py-10 bg-white shadow-md mt-6 rounded-xl">
     <h1 class="text-3xl font-bold mb-6">The Great Disconnect: Market Panic vs. Circle's Q3 Fundamentals</h1>
 
@@ -42,11 +51,43 @@
       distortions.
     </p>
 
-    <p class="text-gray-700 leading-relaxed mb-4">
+    <p class="text-gray-700 leading-relaxed mb-6">
       The core business was genuinely profitable even before fair-value adjustments and one-time tax benefits.
       The jump to $214M net income was largely accounting noise, not operational strength.
     </p>
 
+    <!-- ======================== -->
+    <!-- ⭐ Enhanced Image Section -->
+    <!-- ======================== -->
+    <div class="text-center my-10">
+
+      <!-- Thumbnail (Click to open lightbox) -->
+      <a href="#lightbox-img" class="block">
+        <img 
+          src="/lucaszheng/images/crypto/Stablecoinsupply11_17.png"
+          loading="lazy"
+          alt="Stablecoin Supply Chart"
+          class="rounded-xl shadow-lg mx-auto w-4/5 cursor-pointer hover:opacity-90 transition"
+        >
+      </a>
+
+      <p class="text-sm text-gray-600 mt-2">Global Stablecoin Supply as of November 17, 2025</p>
+    </div>
+
+    <!-- ⭐ Lightbox Fullscreen Viewer -->
+    <div id="lightbox-img" 
+         class="lightbox fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+
+      <a href="#" class="absolute top-5 right-5 text-white text-3xl font-bold">&times;</a>
+
+      <img 
+        src="/lucaszheng/images/crypto/Stablecoinsupply11_17.png"
+        class="rounded-xl shadow-2xl max-h-[90vh] w-auto"
+      >
+    </div>
+    <!-- End Lightbox -->
+
+    <!-- Continue Article -->
     <h2 class="text-2xl font-bold mt-8 mb-4">The Real Thesis: This Is Infrastructure, Not Just a Coin</h2>
 
     <p class="text-gray-700 leading-relaxed mb-4">
@@ -70,6 +111,7 @@
       in a profitable infrastructure company is the moment to accumulate. For everyone else, the volatility is real
       and caution is justified.
     </p>
+
   </article>
 
 </body>
